@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arène</title>
+  <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="New_Arena_3.css">
+</head>
+<body>
+  <div class="arena-wrapper">
+    <!-- Avatars -->
+    <div class="avatars">
+      <div class="avatar-container">
+        <div class="avatar-border">
+          <img src="AvatarVieuxPere_2.jpg" alt="IA">
+        </div>
+        <div class="avatar-name">IA</div>
+      </div>
+
+      <div class="avatar-container">
+        <div class="avatar-border">
+          <img src="AvatarVieuxPere_1.jpg" alt="Joueur">
+        </div>
+        <div class="avatar-name">Joueur</div>
+      </div>
+    </div>
+
+    <!-- Cartes IA -->
+    <div class="hand ia">
+      <div class="card"></div>
+      <div class="card"></div>
+      <div class="card"></div>
+      <div class="card"></div>
+    </div>
+
+    <!-- Timer & Score -->
+<div class="top-bar">
+  <div class="timer">⏱ 09:00</div>
+  <div class="score">⭐ 150</div>
+</div>
+
+<!-- 📌 La Roue -->
+
+<!-- ✅ L'image de la roue (déjà placée entre tes avatars) -->
+<div class="wheel-container">
+   <div class="wheel-border">
+  <img src="RoueEnFeu_2.jpg" alt="Roue magique" id="wheel-image">
+  </div>
+   <div class="wheel-name">Roue</div>
+</div>
+
+
+<!-- ✅ Popup caché au départ -->
+<div id="wheel-popup" class="popup-overlay">
+  <div class="popup-box">
+    <span class="popup-close" id="close-popup">&times;</span>
+    
+    <!-- Affiche la page de ta roue -->
+    <iframe src="Roue.html" class="popup-frame"></iframe>
+  </div>
+</div>
+
+
+    <!-- Arène -->
+    <div class="arena"></div>
+
+    <!-- Cartes Joueur -->
+    <div class="hand player">
+      <div class="card"></div>
+      <div class="card"></div>
+      <div class="card"></div>
+      <div class="card"></div>
+    </div>
+  </div>
+<script src="New_Arena_2.js"></script>
+</body>
+</html>

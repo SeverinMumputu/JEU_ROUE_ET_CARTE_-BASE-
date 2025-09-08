@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lancement...</title>
+  <link rel="stylesheet" href="BarreDeProgression.css">
+   <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Popup musique plein écran -->
+<div id="music-popup" class="music-popup">
+  <div class="popup-music">
+    <p>Cliquez sur "Continuer" pour commencer.</p>
+    <button id="music-btn" onclick="startMusic()">Continuer</button>
+  </div>
+</div>
+
+
+   <!-- Musique de fond -->
+  <audio id="bg-music" autoplay loop>
+    <source src="The Room.mp3" type="audio/mp3">
+    Votre navigateur ne supporte pas l’audio.
+  </audio>
+
+  <!-- Message orientation 
+<div id="orientation-msg" class="orientation-message">
+  <p>Tournez votre appareil en mode paysage<br>pour une meilleure expérience de jeu !</p>
+  <button id="continue-btn">Continuer</button>
+</div>-->
+
+
+
+
+  <!-- Diaporama arrière-plan -->
+  <div id="slideshow">
+    <img src="portrait-d-un-personnage-magicien-fantastique.jpg" class="slide active">
+    <img src="entite-de-style-anime-avec-du-feu.jpg" class="slide">
+    <img src="card_artwork_7.png" class="slide">
+    <img src="un-personnage-de-style-fantastique-en-feu (1).jpg" class="slide">
+    <img src="card_artwork_5.png" class="slide">
+    <img src="un-personnage-de-style-fantastique-en-feu.jpg" class="slide">
+  </div>
+
+  <!-- Avatar avec barre circulaire -->
+  <div class="avatar-container">
+    <svg class="progress-ring" width="140" height="140">
+      <circle class="progress-ring__bg" stroke-width="10" r="60" cx="70" cy="70"/>
+      <circle class="progress-ring__circle" stroke-width="10" r="60" cx="70" cy="70"/>
+    </svg>
+    <img src="AvatarVieuxPere_1.jpg" class="avatar">
+  </div>
+
+  <!-- Popup médiéval -->
+  <div class="popup">
+    <div class="popup-content">
+      <p id="popup-text">Initialisation du réseau...</p>
+    </div>
+    <div class="popup-arrow"></div>
+  </div>
+
+
+  <script src="BarreDeProgression.js"></script>
+</body>
+</html>
+

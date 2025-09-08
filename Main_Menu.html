@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Menu Principal</title>
+  <link rel="stylesheet" href="Main_Menu.css">
+   <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- Popup de démarrage -->
+<div id="start-popup" class="start-popup">
+  <div class="start-content">
+    <p id="start-message"></p>
+    <button id="start-btn">Continuer</button>
+  </div>
+</div>
+
+<!-- Message orientation 
+<div id="orientation-msg" class="orientation-message">
+  <p>Tournez votre appareil en mode paysage<br>pour une meilleure expérience de jeu !</p>
+  <button id="continue-btn">Continuer</button>
+</div>-->
+
+
+  <!-- Musique -->
+  <audio id="bg-music" loop autoplay>
+    <source src="False Flag.mp3" type="audio/mp3">
+  </audio>
+  <audio id="fire-sound">
+    <source src="sfx-metal7.mp3" type="audio/mp3">
+  </audio>
+
+  <!-- Fond plaque en pierre -->
+  <div class="stone-bg"></div>
+  <div class="stone-bg second"></div>
+
+  <!-- Particules feu -->
+  <canvas id="fireParticles"></canvas>
+
+  
+  <!-- Titre du jeu avec braises -->
+<h1 class="game-title">L'Arène des Arcanes</h1>
+<canvas id="emberCanvas"></canvas>
+
+  
+
+  <!-- Menu cercles -->
+  <!-- Boutons menu circulaires (les titres deviennent cliquables) -->
+<div class="menu-circles">
+  <div class="circle" data-info="Affrontez vos adversaires dans l'arène magique !">
+    <img src="cardFront_frame_1.png" alt="Arène">
+    <button class="circle-btn" id="btn-arena">Arène</button>
+  </div>
+  <div class="circle" data-info="Gérez les paramètres du jeu.">
+    <img src="cardFront_frame_1.png" alt="Paramètres">
+    <button class="circle-btn">Paramètres</button>
+  </div>
+  <div class="circle" data-info="Accédez à la boutique de cartes.">
+    <img src="cardFront_frame_1.png" alt="Boutique">
+    <button class="circle-btn">Boutique</button>
+  </div>
+</div>
+
+<!-- Popup de sélection de mode -->
+<div id="arena-popup" class="popup-overlay">
+  <div class="popup-box">
+    <h2 class="popup-title">Sélectionnez votre mode d'arène</h2>
+    <div class="popup-buttons">
+      <button class="mode-btn" id="btn-ai">🤖 Contre IA</button>
+      <button class="mode-btn" id="btn-1v3">⚔️ Mode 1 vs 3</button>
+    </div>
+    <button class="close-btn">✖</button>
+    <div class="popup-fire"></div> <!-- Particules feu -->
+  </div>
+</div>
+
+
+  <!-- Popup explicatif -->
+<div id="popup" class="popup">
+  <div class="popup-content">
+    <div class="popup-fire"></div>
+    <p id="popup-text"></p>
+  </div>
+  <div class="popup-arrow"></div>
+</div>
+
+
+  <script src="Main_Menu.js"></script>
+</body>
+</html>

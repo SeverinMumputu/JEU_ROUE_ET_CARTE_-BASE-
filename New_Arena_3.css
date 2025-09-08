@@ -1,0 +1,237 @@
+    body {
+      margin: 0;
+      height: 100vh;
+      background: radial-gradient(circle at center, #2b1014 0%, #1a0f08 100%);
+      font-family: 'MedievalSharp', cursive;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Conteneur principal */
+    .arena-wrapper {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      grid-template-rows: auto 1fr auto;
+      gap: 10px;
+      width: 100%;
+      max-width: 1000px;
+      height: 100%;
+      max-height: 95vh;
+      box-sizing: border-box;
+    }
+
+    /* Avatars à gauche */
+    .avatars {
+      grid-row: 1 / span 3;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+    }
+
+    .avatar-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .avatar-border {
+      position: relative;
+      width: clamp(80px, 12vw, 110px);
+      height: clamp(80px, 12vw, 110px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .avatar-border img {
+      width: 70%;
+      height: 70%;
+      border-radius: 50%;
+      border: 3px solid #ffae42;
+      object-fit: cover;
+    }
+    .avatar-name {
+      margin-top: 6px;
+      font-size: clamp(12px, 1.5vw, 16px);
+      padding: 4px 10px;
+      background: rgba(255,120,0,0.5);
+      border: 2px solid #ffae42;
+      border-radius: 8px;
+      color: #ffecc7;
+    }
+
+    /* Arène centrale */
+    .arena {
+      grid-column: 2;
+      grid-row: 2;
+      background: url('texture-feu.jpg') center/cover no-repeat;
+      border: 8px solid #d4a44c;
+      border-radius: 20px;
+      box-shadow: inset 0 0 30px rgba(0,0,0,0.65), 0 0 50px rgba(255,120,0,0.45);
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Cartes IA et Joueur */
+    .hand {
+      grid-column: 2;
+      display: flex;
+      justify-content: center;
+      gap: clamp(8px, 2vw, 14px);
+    }
+    .hand.ia {
+      grid-row: 1;
+    }
+    .hand.player {
+      grid-row: 3;
+    }
+
+    .card {
+      width: clamp(56px, 10vw, 80px);
+      height: clamp(80px, 14vw, 120px);
+      border: 3px solid #d4a44c;
+      border-radius: 10px;
+      background: url('parchment-texture.png') center/cover;
+      box-shadow: 0 0 12px rgba(255,150,0,0.55);
+      cursor: grab;
+    }
+    .card:hover {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 0 18px rgba(255,200,120,0.9);
+    }
+
+/* 📌 CSS */
+.wheel-container {
+  position: absolute;
+  top: 50%;
+  left: 0; /* aligné avec les avatars à gauche */
+  transform: translateY(-50%); /* centré verticalement */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* même style que l’avatar */
+.wheel-border {
+  position: relative;
+  width: clamp(90px, 14vw, 120px); /* identique aux avatars */
+  height: clamp(90px, 14vw, 120px);
+  display: grid;
+  place-items: center;
+}
+
+.wheel-border img {
+  width: clamp(60px, 9.5vw, 80px);
+  height: clamp(60px, 9.5vw, 80px);
+  border-radius: 50%;
+  border: 3px solid #ffae42;
+  object-fit: cover;
+}
+
+.wheel-name {
+  font-size: clamp(12px, 1.8vw, 16px);
+  padding: 4px 10px;
+  background: rgba(255,120,0,0.5);
+  border: 2px solid #ffae42;
+  border-radius: 8px;
+  color: #ffecc7;
+}
+
+
+/* --- Style popup --- */
+.popup-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.6);
+  display: none; /* caché par défaut */
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.popup-box {
+  background: #1a0f08;
+  border: 3px solid #d4a44c;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;   /* limite la taille */
+  height: 80%;
+  max-height: 500px;  /* évite que ça dépasse */
+  box-shadow: 0 0 25px rgba(255,120,0,0.8);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.popup-close {
+  position: absolute;
+  top: 6px; right: 10px;
+  font-size: 26px;
+  color: #ffd98e;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.popup-close:hover {
+  color: #fff;
+}
+
+/* --- L'iframe de la roue --- */
+.popup-frame {
+  flex: 1;
+  border: none;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+}
+
+    /* Timer + Score en haut */
+.top-bar {
+  position: absolute;
+  top: 10px;
+  right: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 15px;
+  z-index: 50;
+  pointer-events: none; /* ne gêne pas le jeu */
+}
+
+.timer, .score {
+  background: rgba(0,0,0,0.65);
+  border: 2px solid #d4a44c;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: clamp(14px, 2vw, 18px);
+  font-weight: bold;
+  color: #ffd98e;
+  box-shadow: 0 0 10px rgba(255,200,120,0.7);
+}
+
+
+    /* Responsive portrait */
+    @media (max-width: 768px) {
+      .arena-wrapper {
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto 1fr auto;
+      }
+      .top-bar{
+        left:0;
+      }
+      .avatars {
+        padding: 5px;
+        margin-top: 30px;
+      }
+      .arena {
+        border-width: 6px;
+      }
+      .card{
+        margin-top: 30px;
+      }
+    }

@@ -1,0 +1,246 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'MedievalSharp', cursive;
+}
+
+body {
+  overflow: hidden;
+  font-family: 'Cinzel Decorative', cursive;
+  color: #fff;
+}
+
+/* --- Diaporama arrière-plan --- */
+#slideshow {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: -1;
+}
+
+#slideshow img {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* Affiche toute l'image */
+  background-color: #000; /* Bandes noires si besoin */
+  opacity: 0;
+  transition: opacity 2s ease-in-out;
+}
+
+
+#slideshow img.active {
+  opacity: 1;
+}
+
+/* --- Avatar et barre circulaire --- */
+.avatar-container {
+  position: absolute;
+  bottom: 40px; left: 40px;
+  width: 140px; height: 140px;
+}
+
+.avatar {
+  position: absolute;
+  top: 20px; left: 20px;
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  border: 3px solid #d4a44c;
+  object-fit: cover;
+  animation: fadeAvatar 1s ease-in-out;
+}
+
+@keyframes fadeAvatar {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+
+.progress-ring__bg {
+  fill: transparent;
+  stroke: rgba(255, 255, 255, 0.3);
+}
+
+.progress-ring__circle {
+  fill: transparent;
+  stroke:  #ff7300;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  stroke-dasharray: 377; /* 2πr */
+  stroke-dashoffset: 377;
+  transition: stroke-dashoffset 1s linear;
+}
+
+/* Fond assombri derrière le popup */
+.music-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7); /* Fond assombri */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000; /* Au-dessus de tout */
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+
+/* Contenu du popup (reprend le style fantasy) */
+.music-popup .popup-music {
+  background: linear-gradient(135deg, #3b1b10, #6a1e06);
+  border: 3px solid #d4a44c;
+  padding: 20px 30px;
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  color: #ffecc7;
+  text-align: center;
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(255, 100, 0, 0.6), 0 0 40px rgba(255, 140, 0, 0.3);
+  width: 300px;
+}
+/* Bouton "Continuer" */
+#music-btn {
+  margin-top: 15px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #d4a44c, #f7d379);
+  color: #3b1b10;
+  border: 2px solid #b8863b;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Effet hover amélioré */
+#music-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 15px rgba(255, 220, 150, 0.8);
+  background: linear-gradient(135deg, #f7d379, #ffd98e);
+}
+
+
+/* --- Popup style magicien de feu --- */
+.popup {
+  position: absolute;
+  bottom: 190px; /* Position au-dessus de l'avatar */
+  left: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 1s ease, transform 1s ease;
+}
+
+.popup-content {
+  background: linear-gradient(135deg, #3b1b10, #6a1e06); /* Bois sombre rougeâtre */
+  border: 3px solid #d4a44c; /* Bordure dorée */
+  padding: 15px 25px;
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  color: #ffecc7; /* Ivoire lumineux */
+  text-align: center;
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(255, 100, 0, 0.6), 0 0 40px rgba(255, 140, 0, 0.3);
+  max-width: 220px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Texture parchemin brûlé en overlay */
+.popup-content::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url('emblem_7.png') center/cover;
+  opacity: 0.2;
+  z-index: 0;
+}
+
+/* Texte au-dessus du calque */
+.popup-content p {
+  position: relative;
+  z-index: 1;
+}
+
+/* Flèche stylisée */
+.popup-arrow {
+  width: 0;
+  height: 0;
+  border-left: 15px solid transparent;
+  border-right: 15px solid transparent;
+  border-top: 15px solid #d4a44c; /* Doré */
+  filter: drop-shadow(0 0 5px rgba(255, 100, 0, 0.7));
+}
+
+/* Apparition */
+.popup.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* --- Particules de feu animées --- */
+@keyframes fireParticles {
+  0% { transform: translateY(0) scale(0.5); opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { transform: translateY(-20px) scale(1); opacity: 0; }
+}
+
+.particle {
+  position: absolute;
+  bottom: 0;
+  width: 6px;
+  height: 6px;
+  background: radial-gradient(circle, #ff7300 0%, #ff2600 80%);
+  border-radius: 50%;
+  animation: fireParticles 1.5s infinite;
+  pointer-events: none;
+}
+
+
+
+.orientation-message {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.9);
+  color: #fff;
+  font-family: 'Cinzel', serif;
+  font-size: 5vw;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 6000;
+  padding: 20px;
+}
+
+.orientation-message p {
+  max-width: 80%;
+  line-height: 1.4;
+  text-shadow: 0 0 10px rgba(255,140,0,1);
+  margin-bottom: 20px;
+}
+
+/* Bouton Continuer */
+#continue-btn {
+  padding: 10px 25px;
+  font-family: 'Cinzel', serif;
+  font-size: 4vw;
+  background: linear-gradient(135deg, #d4a44c, #f7d379);
+  color: #3b1b10;
+  border: 2px solid #b8863b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+#continue-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 15px rgba(255,220,150,0.9);
+}

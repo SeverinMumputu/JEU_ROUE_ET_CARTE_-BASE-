@@ -1,0 +1,483 @@
+*{
+  font-family: 'MedievalSharp', cursive;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: 'Cinzel Decorative', cursive;
+  background-color:   #ffae42;
+  text-align: center;
+}
+
+/* --- Fond pierre --- */
+.stone-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url('holder_dark.png') center/cover no-repeat;
+  filter: brightness(0.9);
+  z-index: -2;
+  
+}
+.stone-bg.second {
+  transform: scale(1.05);
+  opacity: 0.5;
+  z-index: -3;
+  color: black;
+}
+
+/* Popup plein écran */
+.start-popup {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 5000;
+  transition: opacity 0.6s ease;
+}
+
+/* Contenu */
+.start-content {
+  background: url('holder_dark.png') center/cover;
+  border: 3px solid #d4a44c;
+  color: #ffecc7;
+  padding: 25px 40px;
+  border-radius: 14px;
+  box-shadow: 0 0 25px rgba(255, 80, 0, 0.8);
+  text-align: center;
+  max-width: 400px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Message */
+#start-message {
+  font-size: 18px;
+  margin-bottom: 20px;
+  text-shadow: 0 0 8px rgba(255, 150, 50, 0.9);
+}
+
+/* Bouton continuer */
+#start-btn {
+  padding: 10px 25px;
+  font-size: 18px;
+  background: linear-gradient(135deg, #d4a44c, #f7d379);
+  color: #3b1b10;
+  border: 2px solid #b8863b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+#start-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 15px rgba(255,220,150,0.9);
+}
+
+
+/* --- Particules feu --- */
+#fireParticles {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* --- Titre (descendu) --- */
+.game-title {
+  margin-top: 180px; /* abaissé au centre */
+  font-size: 84px;
+  color: #ffae42;
+  text-shadow: 0 0 15px rgba(255,80,0,1), 0 0 30px rgba(255,0,0,0.6);
+  animation: flameGlow 2s infinite alternate;
+  position: relative;
+  z-index: 2;
+}
+
+/* --- Canvas braises --- */
+#emberCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* --- Hover sur texte cercles --- */
+.circle span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 20px;
+  color: #fff;
+  text-shadow: 0 0 8px rgba(255,80,0,1);
+  transition: text-shadow 0.3s ease, color 0.3s ease;
+}
+.circle:hover span {
+  color: #ffd27f;
+  text-shadow: 0 0 12px rgba(255,150,50,1), 0 0 20px rgba(255,50,0,0.9);
+}
+
+/* --- Popup amélioré --- */
+.popup-content {
+  background: url('emblem_7.png') center/cover;
+  border: 3px solid #d4a44c;
+  color: #ffecc7;
+  padding: 15px 20px;
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: bold;
+  box-shadow: 0 0 15px rgba(255, 100, 0, 0.7);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Particules feu dans popup */
+.popup-fire {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+.popup-content p {
+  position: relative;
+  z-index: 1;
+
+}
+
+
+/* --- Cercles enflammés --- */
+.menu-circles {
+  display: flex;
+  justify-content: center;
+  gap: 80px;
+  margin-top: 80px;
+}
+.circle {
+  position: relative;
+  width: 150px;
+  cursor: pointer;
+}
+.circle img {
+  width: 100%;
+  filter: drop-shadow(0 0 10px rgba(255,80,0,0.7));
+  transition: transform 0.3s ease;
+}
+.circle span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 22px;
+  color: #fff;
+  font-weight: bold;
+  text-shadow: 0 0 8px rgba(255,80,0,1);
+}
+.circle:hover img {
+  transform: scale(1.1);
+  filter: drop-shadow(0 0 25px rgba(255,120,0,1));
+}
+
+/* --- Popup style fantasy --- */
+.popup {
+  position: absolute;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.popup-arrow {
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 12px solid #d4a44c;
+  margin: 0 auto;
+}
+
+.orientation-message {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.9);
+  color: #fff;
+  font-family: 'Cinzel', serif;
+  font-size: 5vw;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 6000;
+  padding: 20px;
+}
+
+.orientation-message p {
+  max-width: 80%;
+  line-height: 1.4;
+  text-shadow: 0 0 10px rgba(255,140,0,1);
+  margin-bottom: 20px;
+}
+
+/* Bouton Continuer */
+#continue-btn {
+  padding: 10px 25px;
+  font-family: 'Cinzel', serif;
+  font-size: 4vw;
+  background: linear-gradient(135deg, #d4a44c, #f7d379);
+  color: #3b1b10;
+  border: 2px solid #b8863b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+#continue-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 15px rgba(255,220,150,0.9);
+}
+
+
+/* --- Popup overlay --- */
+.popup-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 7000;
+  justify-content: center;
+  align-items: center;
+}
+
+/* --- Boîte popup --- */
+.popup-box {
+  background: url('bois-mystique-le-matin-brumeux.jpg') center/cover;
+  border: 3px solid #d4a44c;
+  border-radius: 14px;
+  padding: 25px 40px;
+  color: #ffecc7;
+  text-align: center;
+  max-width: 450px;
+  width: 80%;
+  position: relative;
+  box-shadow: 0 0 30px rgba(255, 100, 0, 0.8);
+  animation: popupAppear 0.5s ease-out;
+  overflow: hidden;
+}
+@keyframes popupAppear {
+  from { transform: scale(0.7); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* --- Titre du popup --- */
+.popup-title {
+  font-size: 2em;
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px rgba(255,140,0,1);
+}
+
+/* --- Boutons de mode --- */
+.popup-buttons {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 15px;
+}
+.mode-btn {
+  padding: 12px 20px;
+  font-size: 1em;
+  color: #3b1b10;
+  background: linear-gradient(135deg, #d4a44c, #f7d379);
+  border: 2px solid #b8863b;
+  border-radius: 10px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+.mode-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 15px rgba(255,220,150,0.9);
+}
+
+/* --- Bouton fermer --- */
+.close-btn {
+  position: absolute;
+  top: 10px; right: 10px;
+  background: none;
+  border: none;
+  color: #ffecc7;
+  font-size: 1.2em;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.close-btn:hover {
+  transform: scale(1.2);
+  color: #ff4500;
+}
+
+/* --- Particules feu --- */
+.popup-fire {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* --- Boutons circulaires dans le menu --- */
+.circle-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: none;
+  border: none;
+  font-size: 1.2em;
+  color: #fff;
+  cursor: pointer;
+  text-shadow: 0 0 8px rgba(255,80,0,1);
+  transition: text-shadow 0.3s ease, color 0.3s ease;
+}
+.circle-btn:hover {
+  color: #ffd27f;
+  text-shadow: 0 0 12px rgba(255,150,50,1), 0 0 20px rgba(255,50,0,0.9);
+}
+
+
+/* --- RESPONSIVE GLOBAL --- */
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: 'Cinzel', serif;
+  text-align: center;
+  color: #fff;
+  height: 100vh;
+}
+
+/* Ajustement du titre sur écrans petits */
+.game-title {
+  font-size: 6vw; /* taille fluide */
+  margin-top: 15vh; /* centré verticalement */
+}
+
+/* Circles en grille adaptable */
+.menu-circles {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6vw;
+  margin-top: 8vh;
+}
+
+.circle {
+  width: 20vw; /* taille fluide */
+  max-width: 140px;
+}
+.circle img {
+  width: 100%;
+}
+.circle span {
+  font-size: 2.5vw;
+}
+
+/* Popup responsive */
+.popup {
+  max-width: 80%;
+}
+.popup-content {
+  font-size: 2.5vw;
+}
+
+/* --- MODE TABLETTE (768px à 1024px) --- */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .game-title {
+    font-size: 5vw;
+    margin-top: 18vh;
+  }
+  .circle {
+    width: 18vw;
+  }
+  .circle span {
+    font-size: 2vw;
+  }
+  .popup-content {
+    font-size: 2vw;
+  }
+}
+
+/* --- MODE MOBILE (< 767px) --- */
+@media (max-width: 767px) {
+  .game-title {
+    font-size: 7vw;
+    margin-top: 12vh;
+  }
+  .menu-circles {
+    flex-direction: column;
+    align-items: center;
+    gap: 5vh;
+    margin-top: 6vh;
+  }
+  .circle {
+    width: 35vw;
+    max-width: 120px;
+  }
+  .circle span {
+    font-size: 4vw;
+  }
+  .popup {
+    top: auto;
+    bottom: 20%;
+  }
+  .popup-content {
+    font-size: 3.5vw;
+    padding: 10px 15px;
+  }
+}
+
+/* --- MODE PAYSAGE (orientation landscape) --- */
+@media screen and (orientation: landscape) {
+  body {
+    transform: rotate(0deg);
+    transform-origin: center;
+  }
+  .game-title {
+    font-size: 5vw;
+    margin-top: 8vh;
+  }
+  .menu-circles {
+    flex-direction: row;
+    gap: 5vw;
+    margin-top: 5vh;
+  }
+  .circle {
+    width: 15vw;
+  }
+}
+
+/* --- Responsive Mobile --- */
+@media (max-width: 767px) {
+  .popup-box { width: 90%; padding: 20px; }
+  .popup-title { font-size: 1.5em; }
+  .mode-btn { font-size: 0.9em; padding: 10px 15px; }
+}
+
+/* --- Responsive Tablette --- */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .popup-box { width: 70%; }
+}
+
+/* --- Orientation paysage --- */
+@media screen and (orientation: landscape) {
+  .popup-box { max-width: 500px; }
+}
