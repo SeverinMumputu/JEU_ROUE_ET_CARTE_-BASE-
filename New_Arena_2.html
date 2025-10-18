@@ -8,21 +8,41 @@
   <link rel="stylesheet" href="New_Arena_3.css">
 </head>
 <body>
+
+  <!-- Popup container -->
+<div id="popup-container"></div>
+
   <div class="arena-wrapper">
+    
     <!-- Avatars -->
     <div class="avatars">
+
+      <!-- Avatar IA -->
       <div class="avatar-container">
-        <div class="avatar-border">
+        <div class="avatar-border" data-player="ia" id="avatar-ia">
           <img src="AvatarVieuxPere_2.jpg" alt="IA">
         </div>
         <div class="avatar-name">IA</div>
+
+        <!-- Timer & Score IA -->
+        <div class="player-stats" id="stats-ia">
+          <div class="timer" id="timer-ia">⏱ 09:00</div>
+          <div class="score" id="score-ia">⭐ 150</div>
+        </div>
       </div>
 
+      <!-- Avatar Joueur -->
       <div class="avatar-container">
-        <div class="avatar-border">
+        <div class="avatar-border" data-player="player" id="avatar-player">
           <img src="AvatarVieuxPere_1.jpg" alt="Joueur">
         </div>
         <div class="avatar-name">Joueur</div>
+
+        <!-- Timer & Score Joueur -->
+        <div class="player-stats" id="stats-player">
+          <div class="timer" id="timer-player">⏱ 09:00</div>
+          <div class="score" id="score-player">⭐ 150</div>
+        </div>
       </div>
     </div>
 
@@ -34,37 +54,45 @@
       <div class="card"></div>
     </div>
 
-    <!-- Timer & Score -->
-<div class="top-bar">
-  <div class="timer">⏱ 09:00</div>
-  <div class="score">⭐ 150</div>
-</div>
+    <!-- ✅ Indicateur de tour -->
+    <div id="turn-indicator" class="turn-indicator">
+      Tour de : <span id="turn-name">Joueur</span>
+    </div>
 
-<!-- 📌 La Roue -->
+    <!-- ✅ L'image de la roue -->
+    <div class="wheel-container">
+      <div class="wheel-border">
+        <img src="RoueEnFeu_2.jpg" alt="Roue magique" id="wheel-image">
+      </div>
+      <div class="wheel-name">Roue</div>
+    </div>
 
-<!-- ✅ L'image de la roue (déjà placée entre tes avatars) -->
-<div class="wheel-container">
-   <div class="wheel-border">
-  <img src="RoueEnFeu_2.jpg" alt="Roue magique" id="wheel-image">
-  </div>
-   <div class="wheel-name">Roue</div>
-</div>
-
-
-<!-- ✅ Popup caché au départ -->
-<div id="wheel-popup" class="popup-overlay">
-  <div class="popup-box">
-    <span class="popup-close" id="close-popup">&times;</span>
-    
-    <!-- Affiche la page de ta roue -->
-    <iframe src="Roue.html" class="popup-frame"></iframe>
-  </div>
-</div>
-
+    <!-- ✅ Popup caché au départ -->
+    <div id="wheel-popup" class="popup-overlay">
+      <div class="popup-box">
+        <span class="popup-close" id="close-popup">&times;</span>
+        <iframe src="Roue.html" class="popup-frame"></iframe>
+      </div>
+    </div>
 
     <!-- Arène -->
-    <div class="arena"></div>
-
+     <div id="arena" class="arena">
+      <!-- Slots pour le joueur --> <!-- Emplacements invisibles pour dépôt des cartes -->
+      <div class="drop-slots player">
+        <div class="slot" data-slot="0"><img src="" class="arena-card" style="display:none;"></div>
+        <div class="slot" data-slot="1"><img src="" class="arena-card" style="display:none;"></div>
+        <div class="slot" data-slot="2"><img src="" class="arena-card" style="display:none;"></div>
+        <div class="slot" data-slot="3"><img src="" class="arena-card" style="display:none;"></div>
+      </div>
+      <!-- Slots pour l’IA -->
+      <div class="drop-slots ia">
+        <div class="slot" data-slot="0"><img src="" class="arena-card" style="display:none;"></div>
+        <div class="slot" data-slot="1"><img src="" class="arena-card" style="display:none;"></div>
+        <div class="slot" data-slot="2"><img src="" class="arena-card" style="display:none;"></div>
+        <div class="slot" data-slot="3"><img src="" class="arena-card" style="display:none;"></div>
+      </div>
+    </div>
+    
     <!-- Cartes Joueur -->
     <div class="hand player">
       <div class="card"></div>
@@ -73,6 +101,7 @@
       <div class="card"></div>
     </div>
   </div>
-<script src="New_Arena_2.js"></script>
+
+  <script src="New_Arena_2.js"></script>
 </body>
 </html>
