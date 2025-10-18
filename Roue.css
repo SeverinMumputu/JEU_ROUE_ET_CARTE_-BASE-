@@ -1,0 +1,91 @@
+/* DECLARATION CSS */
+* { 
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'MedievalSharp', cursive;
+}
+
+body {
+  font-family: 'MedievalSharp', cursive;
+  background: radial-gradient(circle at center, #1e1e3f, #0f0f1f);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  overflow: hidden;
+}
+#turn-indicator {
+  font-family: 'MedievalSharp', cursive;
+  font-size: 22px;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 8px;
+
+  /* Style fantasy / glow */
+  padding: 6px 14px;
+  border: 3px solid #FFD700;      /* or gold */
+  border-radius: 10px;
+  display: inline-block;
+  background: rgba(20, 20, 40, 0.85);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
+  text-shadow: 0 0 6px #FFD700, 0 0 12px #FFA500;
+}
+canvas {
+  display: block;
+  max-width: 95vw;   /* jamais plus large que l’écran */
+  height: auto;      /* conserve le ratio */
+}
+  
+h1 {
+  margin-bottom: 20px;
+  color: white;
+  text-align: center;
+  font-size: 15px;
+  margin-top: 20px;
+}
+
+button {
+  margin-top: 20px;
+  padding: 12px 28px;
+  font-size: 23px;
+  font-weight: bold;
+  background: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+button:hover {
+  background: #009688;
+}
+
+@media (max-width: 768px) {
+  canvas {
+    max-width: 100vw; /* un peu plus petit sur tablette */
+     
+  }
+  button {
+    padding: 10px 20px;
+    font-size: 18px;
+  }
+
+}
+
+@media (max-width: 480px) {
+  canvas {
+    max-width: 100vw; /* plein écran sur mobile */
+   
+  }
+  button {
+    padding: 8px 18px;
+    font-size: 16px;
+    font-weight: bold;
+  }
+  h1 {
+    margin-bottom: 20px;
+    font-size: 13px;
+    margin-top: 80px;
+  }
+}
