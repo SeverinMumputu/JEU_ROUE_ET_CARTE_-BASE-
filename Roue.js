@@ -20,7 +20,7 @@ const ATTAQUES = [
 ];
 
 const DEFENSES = [
-  { id: "def_masque", typeId: "type_defense", label: "masque", image: "theatre.png", description: "Masque les effets entrants" },
+  { id: "def_masque", typeId: "type_defense", label: "masque" , image: "theatre.png", description: "Masque les effets entrants" },
   { id: "def_blocage", typeId: "type_defense", label: "blocage", image: "no_malus.png", description: "Bloque une attaque" },
   { id: "def_renvoi", typeId: "type_defense", label: "renvoi_Attaque", image: "renvoi.png", description: "Renvoie les attaques" },
   { id: "def_explosion", typeId: "type_defense", label: "explosion_Nettoyage", image: "exploseEtNettoi.png", description: "Explose et nettoie tout" },

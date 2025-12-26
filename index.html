@@ -1,43 +1,280 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Générique du Jeu</title>
-  <link rel="stylesheet" href="styles.css">
-  <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fantasy Card Arena - Crépuscule Médiéval</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <!-- Configuration Tailwind personnalisée -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'night-sky': '#0f172a',
+                        'moon-light': '#94a3b8',
+                        'lantern-gold': '#fbbf24',
+                        'lantern-orange': '#d97706',
+                        'wood-dark': '#271c19',
+                        'ui-glass': 'rgba(23, 23, 35, 0.9)',
+                        'ui-border': 'rgba(251, 191, 36, 0.2)'
+                    },
+                    boxShadow: {
+                        'lantern-glow': '0 0 20px rgba(251, 191, 36, 0.15)',
+                        'moon-glow': '0 0 15px rgba(148, 163, 184, 0.2)',
+                        'card-shadow': '0 10px 30px rgba(0, 0, 0, 0.6)'
+                    },
+                    fontFamily: {
+                        'fantasy': ['Cinzel', 'serif'],
+                        'ui': ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@400;600&display=swap');
+
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #0f172a; font-family: 'Inter', sans-serif; user-select: none; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
+        
+        /* Layout Principal : Padding bas augmenté (pb-4 md:pb-8) pour respirer */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; }
+        
+        .pointer-events-auto { pointer-events: auto; }
+        .glass-panel { background: rgba(30, 27, 24, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(251, 191, 36, 0.15); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4); transition: all 0.3s ease; }
+        .card-slot { background: rgba(0, 0, 0, 0.3); border: 2px dashed rgba(148, 163, 184, 0.2); transition: all 0.4s ease; }
+        .card-slot:hover { border-color: #fbbf24; box-shadow: 0 0 20px rgba(251, 191, 36, 0.15); background: rgba(251, 191, 36, 0.05); }
+        
+        /* Selection visuelle */
+        .card-selected {
+            border-color: #fbbf24 !important;
+            box-shadow: 0 0 25px rgba(251, 191, 36, 0.5) !important;
+            transform: translateY(-15px) !important;
+            z-index: 50;
+        }
+
+        /* Animation Focus Avatar */
+        .avatar-active-turn {
+            border-color: #fbbf24 !important;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.4), inset 0 0 20px rgba(251, 191, 36, 0.2) !important;
+            transition: all 0.5s ease;
+        }
+
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #78350f; border-radius: 4px; }
+        
+        @keyframes candle-flicker { 0% { opacity: 0.9; box-shadow: 0 0 15px rgba(251, 191, 36, 0.2); } 100% { opacity: 0.9; box-shadow: 0 0 15px rgba(251, 191, 36, 0.2); } }
+        .animate-candle { animation: candle-flicker 4s infinite alternate; }
+        
+        .tool-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.5rem; border-radius: 0.5rem; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(251, 191, 36, 0.1); transition: all 0.2s ease; cursor: pointer; }
+        .tool-btn:hover { background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.5); transform: translateY(-2px); }
+        .tool-btn svg { margin-bottom: 4px; }
+        
+        /* Responsive Fixes */
+        @media (max-width: 768px) { 
+            #play-btn { position: relative; z-index: 50; transform: translateZ(0); white-space: nowrap; } 
+            #play-btn-container { flex-shrink: 0; } 
+            /* Ajustement pour centrer la main sur mobile */
+            .mobile-hand-center { justify-content: center; width: 100%; }
+        }
+    </style>
 </head>
 <body>
-  <!-- Vidéo en fond -->
-  <video autoplay muted loop id="bg-video">
-    <source src="Générique.mp4" type="video/mp4">
-  </video>
 
-  <!-- Contenu texte + bouton -->
-  <div class="overlay">
-    <h1 class="title">L'Arène des Arcanes</h1>
-    <button id="start-btn">Démarrer</button>
-  </div>
+    <!-- 1. COUCHE ARRIÈRE-PLAN -->
+    <div id="canvas-container"></div>
 
-  <!-- Musique de fond -->
-  <audio id="bg-music" loop>
-    <source src="Introspective Demon.mp3" type="audio/mp3">
-  </audio>
+    <!-- 2. COUCHE UI PRINCIPALE -->
+    <!-- Ajout de pb-6 md:pb-10 pour la marge intérieure basse demandée -->
+    <div id="ui-layer" class="p-2 md:p-4 pb-6 md:pb-10 text-gray-200 overflow-hidden justify-between">
 
-  <!-- Popup de présentation -->
-  <div id="start-popup" class="start-popup">
-    <div class="start-content">
-      <p id="start-message"></p>
-      <button id="popup-continue">Continuer</button>
+        <!-- A) ZONE SUPÉRIEURE (IA) -->
+        <header class="w-full flex justify-between items-start pointer-events-none relative z-20">
+            
+            <!-- GAUCHE: Menus -->
+            <div class="pointer-events-auto flex items-center space-x-2 md:space-x-3">
+                <button class="glass-panel p-2 rounded-full hover:bg-lantern-gold/10 transition-colors group border-lantern-gold/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6 text-gray-400 group-hover:text-lantern-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
+                <button id="wheel-btn" class="glass-panel p-2 rounded-full hover:bg-lantern-gold/10 transition-colors group border-lantern-gold/30 relative" title="Ouvrir la Roue de la Fortune">
+                    <span class="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-gray-900 bg-red-500 transform translate-x-1/4 -translate-y-1/4 animate-pulse"></span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6 text-lantern-gold group-hover:rotate-180 transition-transform duration-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-dasharray="4 4" /><circle cx="12" cy="12" r="3" fill="currentColor" class="opacity-70"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg>
+                </button>
+                <button id="sound-toggle-btn"class="glass-panel p-2 rounded-full hover:bg-lantern-gold/10 transition-colors group border-lantern-gold/30"title="Musique ON / OFF">
+                <!-- ICON SON ON -->
+                    <svg id="sound-on-icon"xmlns="http://www.w3.org/2000/svg"class="h-5 w-5 md:h-6 md:w-6 text-lantern-gold transition-colors"fill="none"viewBox="0 0 24 24"stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"d="M9 5l7 7-7 7V5z"/>
+                     </svg>
+                <!-- ICON SON OFF -->
+                    <svg id="sound-off-icon" xmlns="http://www.w3.org/2000/svg"class="hidden h-5 w-5 md:h-6 md:w-6 text-gray-400 transition-colors"fill="none"viewBox="0 0 24 24"stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"d="M6 6l12 12M18 6L6 18"/>
+                    </svg>
+                    </button>
+            </div>
+
+            <!-- CENTRE: HUD IA + MAIN IA -->
+            <div class="flex flex-col md:flex-row-reverse items-center md:items-start pointer-events-auto md:space-x-4 md:space-x-reverse">
+                
+                <!-- HUD Avatar IA -->
+                <div id="ia-avatar-zone" class="glass-panel px-4 py-2 md:px-6 rounded-b-xl flex items-center space-x-3 md:space-x-4 border-t-0 shadow-lg mb-1 md:mb-0 transition-all duration-300">
+                    <div class="flex flex-col items-center"><div class="text-[8px] md:text-[10px] text-gray-500 font-serif uppercase tracking-wider">Temps</div><div class="text-xs text-lantern-gold font-mono">09:00</div></div>
+                    <div class="relative w-10 h-10 md:w-14 md:h-14 rounded-full border border-gray-600 overflow-hidden shadow-lg bg-gray-900 flex-shrink-0">
+                         <img src="https://placehold.co/150x150/271c19/fbbf24?text=IA" alt="Avatar IA" class="w-full h-full object-cover">
+                    </div>
+                    <div class="text-center">
+                        <h2 class="text-gray-300 font-fantasy tracking-widest text-xs md:text-sm">Gardien</h2>
+                        <div class="text-base md:text-lg font-serif text-white">1250 <span class="text-[8px] md:text-[10px] text-gray-500">PTS</span></div>
+                    </div>
+                </div>
+
+                <!-- Main IA & Deck -->
+                <div class="flex items-center space-x-2 pointer-events-none opacity-80 mt-1 md:mt-2">
+                    <!-- Cartes IA (Container) -->
+                    <!-- MODIF RESPONSIVE: space-x-[-5px] pour chevauchement mobile, w-16 h-24 pour la taille -->
+                    <div id="ia-hand-container" class="flex space-x-[-5px] md:space-x-2">
+                        <div class="w-16 h-24 md:w-10 md:h-16 bg-[#3d2b25] border border-[#5d4037] rounded shadow-md"></div>
+                        <div class="w-16 h-24 md:w-10 md:h-16 bg-[#3d2b25] border border-[#5d4037] rounded shadow-md"></div>
+                        <div class="w-16 h-24 md:w-10 md:h-16 bg-[#3d2b25] border border-[#5d4037] rounded shadow-md"></div>
+                        <div class="w-16 h-24 md:w-10 md:h-16 bg-[#3d2b25] border border-[#5d4037] rounded shadow-md"></div>
+                    </div>
+                    <!-- Deck IA -->
+                    <div class="relative block">
+                        <div class="w-12 h-16 md:w-12 md:h-16 bg-[#2a2320] rounded border-r-2 md:border-r-4 border-[#5d4037] shadow-card"></div>
+                        <div class="absolute -bottom-2 -left-2 bg-[#5d4037] text-gray-200 text-[8px] md:text-[10px] w-4 h-4 md:w-5 md:h-5 rounded-full flex items-center justify-center border border-[#8a6a5c]">?</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DROITE: Info Tour -->
+            <div class="glass-panel p-2 md:p-3 rounded-lg pointer-events-auto flex flex-col space-y-1 md:space-y-2 items-center">
+                 <div class="text-[8px] md:text-[10px] text-gray-500 uppercase font-fantasy">Tour</div>
+                 <!-- Affichage dynamique du tour et timer -->
+                 <div id="turn-display" class="w-6 md:w-8 text-center text-xs font-bold text-lantern-gold">--</div>
+                 <div id="timer-display" class="text-xs text-white font-mono">--</div>
+            </div>
+        </header>
+
+        <!-- B) ZONE CENTRALE : TERRAIN -->
+        <main id="combat-arena" class="flex-grow flex flex-col justify-center items-center relative py-2 pointer-events-none z-10">
+            
+            <div id="combat-phase-indicator" class="absolute top-2 md:top-8 text-lantern-gold/80 px-4 py-1 text-sm font-fantasy tracking-[0.2em] z-0 opacity-0 transition-opacity duration-1000" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8);">
+                - COMBAT -
+            </div>
+
+            <div class="relative w-full max-w-3xl h-full max-h-[500px] flex flex-col justify-center space-y-6 md:space-y-10 z-10 pointer-events-auto">
+                
+               <!-- Slots IA (4 slots) - Nettoyage du slot LOUP (Index 1) -->
+                <div id="ia-combat-slots" class="flex justify-center space-x-1 md:space-x-6 combat-row-ai opacity-0 pointer-events-none">
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center opacity-70" data-index="0"></div>
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center opacity-70" data-index="1"></div>
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center opacity-70" data-index="2"></div>
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center opacity-70" data-index="3"></div>
+                </div>
+
+                <div id="center-line" class="w-full flex justify-center items-center opacity-0">
+                    <div class="h-px w-1/4 bg-gradient-to-r from-transparent via-lantern-gold to-transparent"></div>
+                </div>
+
+                <!-- Slots Joueur (4 slots) - ID ajouté -->
+                <div id="player-combat-slots" class="flex justify-center space-x-1 md:space-x-6 combat-row-player opacity-0">
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center cursor-pointer group hover:bg-moon-light/5" data-index="0"><div class="text-moon-light/20 text-xl font-thin group-hover:text-lantern-gold transition-colors">+</div></div>
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center cursor-pointer group hover:bg-moon-light/5" data-index="1"><div class="text-moon-light/20 text-xl font-thin group-hover:text-lantern-gold transition-colors">+</div></div>
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center cursor-pointer group hover:bg-moon-light/5" data-index="2"><div class="text-moon-light/20 text-xl font-thin group-hover:text-lantern-gold transition-colors">+</div></div>
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center cursor-pointer group hover:bg-moon-light/5" data-index="3"><div class="text-moon-light/20 text-xl font-thin group-hover:text-lantern-gold transition-colors">+</div></div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- C) HUD JOUEUR (Bas) -->
+        <footer class="flex-shrink-0 w-full pointer-events-auto z-20">
+            <div class="flex flex-col md:flex-row items-center md:items-end justify-between w-full max-w-7xl mx-auto px-2 md:px-4 relative">
+                
+                <!-- 1. BLOC SUPERIEUR MOBILE (Deck & Main) -->
+                <div class="flex items-end space-x-2 md:space-x-4 relative z-30 mobile-hand-center mb-2 md:mb-0">
+                    
+                    <!-- Outils Deck -->
+                    <div id="deck-tools-menu" class="absolute bottom-[110%] left-0 glass-panel p-2 rounded-lg shadow-2xl flex gap-2 transform scale-90 opacity-0 hidden z-50 border border-lantern-gold/40">
+                        <button class="tool-btn group w-12 md:w-14"><svg class="w-4 h-4 md:w-5 md:h-5 text-lantern-gold group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="text-[8px] md:text-[9px] text-gray-400 font-fantasy uppercase">Garder</span></button>
+                        <button class="tool-btn group w-12 md:w-14"><svg class="w-4 h-4 md:w-5 md:h-5 text-lantern-gold group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg><span class="text-[8px] md:text-[9px] text-gray-400 font-fantasy uppercase">Envoyer</span></button>
+                        <button class="tool-btn group w-12 md:w-14"><svg class="w-4 h-4 md:w-5 md:h-5 text-lantern-gold group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg><span class="text-[8px] md:text-[9px] text-gray-400 font-fantasy uppercase">Changer</span></button>
+                        <button class="tool-btn group w-12 md:w-14"><svg class="w-4 h-4 md:w-5 md:h-5 text-lantern-gold group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="text-[8px] md:text-[9px] text-gray-400 font-fantasy uppercase">Recharge</span></button>
+                    </div>
+
+                    <div id="player-deck" class="relative group cursor-pointer block transition-transform hover:-translate-y-1 hover:shadow-[0_0_15px_rgba(251,191,36,0.3)] rounded">
+                        <div class="w-16 h-24 bg-[#2a2320] rounded border-l-2 md:border-l-4 border-[#5d4037] shadow-card"></div>
+                        <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"><svg class="w-6 h-6 md:w-8 md:h-8 text-lantern-gold drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg></div>
+                        <div class="absolute -top-2 -right-2 bg-[#5d4037] text-gray-200 text-[10px] md:text-xs w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center border border-[#8a6a5c]">24</div>
+                    </div>
+
+                    <!-- Main Joueur (Container pour le jeu) -->
+                    <div id="player-hand-container" class="flex space-x-[-12px] md:space-x-2 pb-1 md:pb-2 overflow-x-visible items-end">
+                        <div class="w-20 h-28 md:w-28 md:h-40 glass-panel rounded border-gray-600 hover:border-lantern-gold transition-all duration-300 cursor-pointer shadow-card bg-gray-900/90 flex flex-col p-1 md:p-2 group" data-index="0"></div>
+                        <div class="w-20 h-28 md:w-28 md:h-40 glass-panel rounded border-gray-600 hover:border-lantern-gold transition-all duration-300 cursor-pointer shadow-card bg-gray-900/90 flex flex-col p-1 md:p-2 group" data-index="1"></div>
+                        <div class="w-20 h-28 md:w-28 md:h-40 glass-panel rounded border-gray-600 hover:border-lantern-gold transition-all duration-300 cursor-pointer shadow-card bg-gray-900/90 flex flex-col p-1 md:p-2 group" data-index="2"></div>
+                        <div class="w-20 h-28 md:w-28 md:h-40 glass-panel rounded border-gray-600 hover:border-lantern-gold transition-all duration-300 cursor-pointer shadow-card bg-gray-900/90 flex flex-col p-1 md:p-2 group" data-index="3"></div>
+                    </div>
+                </div>
+
+                <!-- 2. BLOC INFERIEUR MOBILE -->
+                <div class="flex w-full md:w-auto items-end justify-between md:justify-end space-x-0 z-30 px-2 md:px-0">
+                    
+                    <!-- Avatar Joueur -->
+                    <div id="player-avatar-zone" class="glass-panel px-4 py-2 md:px-6 rounded-t-xl flex-shrink-0 flex items-center space-x-3 md:space-x-9 border-b-0 shadow-lg bg-[#1c1917]/80 md:absolute md:left-1/5 md:bottom-0 md:transform md:-translate-x-1/2 md:mb-0 transition-all duration-300">
+                        <div class="flex flex-col items-center">
+                            <div class="text-[8px] md:text-[10px] text-gray-500 font-serif uppercase tracking-wider">Temps</div>
+                            <div class="text-xs text-lantern-gold font-mono">09:00</div>
+                        </div>
+                        <div class="relative w-10 h-10 md:w-16 md:h-16 rounded-full border border-gray-600 overflow-hidden shadow-lg bg-gray-900 flex-shrink-0">
+                             <img src="https://placehold.co/150x150/3d2b25/fbbf24?text=MOI" alt="Avatar Joueur" class="w-full h-full object-cover">
+                        </div>
+                        <div class="text-center">
+                            <h2 class="text-gray-300 font-fantasy tracking-widest text-xs md:text-sm">Voyageur</h2>
+                            <div class="text-base md:text-lg font-serif text-white">1800 <span class="text-[8px] md:text-[10px] text-gray-500">PTS</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex flex-col items-end space-y-1 md:space-y-2 pb-1 md:ml-auto">
+                        <div class="flex space-x-2" id="play-btn-container">
+                            <button id="play-btn" class="bg-[#78350f] hover:bg-[#92400e] text-orange-100 border border-orange-900/50 px-4 py-2 md:px-6 md:py-3 rounded shadow-lg transition-all font-fantasy tracking-wider flex items-center space-x-2 animate-candle text-sm md:text-base">
+                                <span id="play-btn-text">JOUER</span>
+                            </button>
+                        </div>
+                        <button class="text-[10px] md:text-xs text-gray-500 hover:text-gray-300 underline">Passer</button>
+                    </div>
+                </div>
+
+            </div>
+        </footer>
     </div>
-  </div>
 
-  <!-- Message orientation 
-  <div id="orientation-msg" class="orientation-message">
-    <p>Tournez votre appareil en mode paysage<br>pour une meilleure expérience de jeu !</p>
-    <button id="continue-portrait">Continuer</button>
-  </div>-->
+    <!-- MODAL IFRAME -->
+    <div id="wheel-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center">
+        <div id="wheel-overlay" class="absolute inset-0 bg-black/60 backdrop-blur-sm opacity-0 transition-opacity duration-300"></div>
+        <div id="wheel-content" class="relative w-[90%] max-w-md h-[500px] glass-panel rounded-xl border border-lantern-gold/30 shadow-[0_0_50px_rgba(0,0,0,0.8)] transform scale-95 opacity-0 flex flex-col overflow-hidden pointer-events-auto">
+            <div class="flex justify-between items-center p-3 border-b border-white/10 bg-black/40">
+                <h3 class="text-lantern-gold font-fantasy tracking-widest text-sm flex items-center gap-2"><span>✦</span> Roue de la Fortune</h3>
+                <button id="close-wheel" class="text-gray-400 hover:text-white hover:rotate-90 transition-all duration-300"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            <div class="flex-grow relative bg-black/20">
+                <iframe src="roue.html" class="absolute inset-0 w-full h-full border-none" title="Roue de la Fortune" allow="autoplay"></iframe>
+            </div>
+        </div>
+    </div>
 
-  <script src="script.js"></script>
+    <script type="module" src="Main.js"></script>
 </body>
 </html>

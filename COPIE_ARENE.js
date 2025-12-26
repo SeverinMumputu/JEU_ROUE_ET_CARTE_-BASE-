@@ -1,30 +1,25 @@
+
 const GAME_ID = 'match42'; // adapte si besoin
 const wheelPopup = document.getElementById("wheel-popup");
 const wheelFrame = document.querySelector(".popup-frame");
 const wheelImageEl = document.getElementById("wheel-image");
 const arenaEl = document.getElementById("arena"); // Arène pour dépôt de cartes
 const turnNameEl = document.getElementById('turn-name');
+//VARIABLE MOTEUR DE TOUR
 let currentTurn = 'player';
 let turnActionDone = false;  
+
+//DECLARATION INITIALE POUR GERER LES SLOTS REMPLIS
 let playerSlotsFilled = 0;
 let iaSlotsFilled = 0;
-// ---- Decks (état) ----
-let playerDeck = []; // tableau d'objets carte { id, label, image }
-let iaDeck = [];
-let playerDeckEl = null;
-let iaDeckEl = null;
-let playerDeckCountEl = null;
-let iaDeckCountEl = null;
-let deckMenuEl = null;
-// permission explicite pour autoriser la roue en mode "deck" même si playPhase est true
-// (ne change pas le spin initial — autorise seulement le spin en mode 'deck')
-let allowDeckSpinsWhilePlaying = true;
+
 let playPhase = false; // devient true quand les 4 slots de chaque joueur sont remplis
+
 let scores = { player: 150, ia: 150 }; // score initial
 const PARTIE_DURATION = 9 * 60; // 9 minutes en secondes
 let timers = { player: PARTIE_DURATION, ia: PARTIE_DURATION }; // timers par joueur
 let partieInterval = null; // intervalle général
-let _gameEnded = false; // empêche double endGame
+
 // Liste de messages/conseils
 const messages = [
   "Chaque joueur commence avec 150 points !",
@@ -32,12 +27,15 @@ const messages = [
   "Les malus peuvent inverser le cours de la partie, soyez vigilants !",
   "Astuce : observez le plateau avant de jouer votre carte."
 ];
+
 // Fonction pour créer popup
 function showPopup(message, duration = 4000) {
   const container = document.getElementById('popup-container');
+  
   const popup = document.createElement('div');
   popup.className = 'popup';
   popup.innerText = message;
+
   // Créer quelques particules de feu
   for(let i = 0; i < 20; i++){
     const particle = document.createElement('div');
@@ -47,15 +45,19 @@ function showPopup(message, duration = 4000) {
     particle.style.animationDelay = `${Math.random()}s`;
     popup.appendChild(particle);
   }
+
   container.appendChild(popup);
+
   setTimeout(() => {
     popup.remove();
   }, duration);
 }
+
 // Afficher les messages au lancement
 messages.forEach((msg, index) => {
   setTimeout(() => showPopup(msg), index * 4500);
 });
+
 const playerState = {
   player: {
     mask: false,
@@ -82,6 +84,7 @@ const playerState = {
     vision: false
   }
 };
+
 function updateStatsUI() {
   // affiche score & timers
   const playerTimerEl = document.getElementById("timer-player");
@@ -93,42 +96,20 @@ function updateStatsUI() {
   if (scoreP) scoreP.textContent = `⭐ ${scores.player}`;
   if (scoreI) scoreI.textContent = `⭐ ${scores.ia}`;
 }
+
 function endGame(winner, reason) {
-  // Protection contre appels multiples
-  if (_gameEnded) {
-    safeLog('endGame appelé alors que la partie est déjà terminée — appel ignoré.');
-    return;
+  // stoppe la partie proprement
+  if (partieInterval) { clearInterval(partieInterval); partieInterval = null; }
+
+  let message;
+  if (winner === null || typeof winner === 'undefined') {
+    message = `Partie terminée : ${reason}`;
+  } else {
+    message = `${winner === 'player' ? 'Le Joueur' : 'L\'IA'} gagne !\n(${reason})`;
   }
-  _gameEnded = true;
-  // Stopper intervalle de partie si actif
-  try { if (partieInterval) { clearInterval(partieInterval); partieInterval = null; } } catch (e) {}
-  // Désactiver interactions (non-destructif)
-  try {
-    document.querySelectorAll(".card").forEach(c => { c.style.pointerEvents = "none"; });
-  } catch (e) { safeLog('endGame: impossible de désactiver les cartes:', e); }
-  // Préparer infos pour le popup
-  const winnerKey = (winner === 'player' || winner === 'ia') ? winner : null;
-  const loserKey = winnerKey ? getOpponent(winnerKey) : null;
-  const winnerScore = winnerKey ? (scores[winnerKey] || 0) : Math.max(scores.player || 0, scores.ia || 0);
-  const loserScore = loserKey ? (scores[loserKey] || 0) : (winnerKey ? (scores[loserKey] || 0) : Math.min(scores.player || 0, scores.ia || 0));
-  const reasonText = reason || 'Fin de partie';
-  // Mettre à jour UI avant d'ouvrir popup
-  try { updateStatsUI(); updateScoresUI(); updateTimersUI(); } catch (e) {}
-  // Afficher le popup stylé (centre / animation) — remplace les anciens alert()
-  try {
-    showVictoryPopup({
-      winner: winnerKey,
-      loser: loserKey,
-      winnerScore,
-      loserScore,
-      reason: reasonText
-    });
-  } catch (e) {
-    // fallback minimal si le popup échoue
-    safeLog('Erreur showVictoryPopup, fallback text:', e, winnerKey, reasonText);
-    try { alert(`${winnerKey ? (winnerKey === 'player' ? 'Le Joueur' : "L'IA") : 'Match'} gagne ! (${reasonText})`); } catch (e2) {}
-  }
-  safeLog('endGame déclenché:', { winner: winnerKey, reason: reasonText, scores });
+  alert(message);
+  // désactiver interactions
+  document.querySelectorAll(".card").forEach(c => { c.style.pointerEvents = "none"; });
 }
 
 function startPartieIfReady() {
@@ -140,8 +121,10 @@ function startPartieIfReady() {
       // Décrémenter les timers des deux joueurs
       timers.player = Math.max(0, timers.player - 1);
       timers.ia = Math.max(0, timers.ia - 1);
+
       // Affichage des timers
       updateStatsUI();
+
       // Vérifier si temps écoulé
       if (timers.player <= 0 || timers.ia <= 0) {
         if (partieInterval) { clearInterval(partieInterval); partieInterval = null; }
@@ -154,6 +137,7 @@ function startPartieIfReady() {
         }
         return;
       }
+
       // Vérifier si score atteint 1000
       if (scores.player >= 1000) {
         if (partieInterval) { clearInterval(partieInterval); partieInterval = null; }
@@ -168,9 +152,11 @@ function startPartieIfReady() {
     }, 1000);
   }
 }
+
 function updateHandInteraction() {
   // si pas en playPhase, ne rien changer (on conserve le comportement de distribution)
   if (!playPhase) return;
+
   ['player','ia'].forEach(p => {
     const hand = document.querySelector(`.hand.${p}`);
     if (!hand) return;
@@ -185,15 +171,21 @@ function updateHandInteraction() {
     });
   });
 }
+
+// C.LE MOTEUR DE TOUR / GESTION DU JOUEUR COURANT
 function setTurn(player, { notifyWheel = true } = {}) {
   currentTurn = player;
+
   // reset action lock pour le nouveau tour
   turnActionDone = false;
+
   document.querySelectorAll('.avatar-border').forEach(el => {
     if (el.dataset.player === player) el.classList.add('active');
     else el.classList.remove('active');
   });
+
   if (turnNameEl) turnNameEl.textContent = player === 'player' ? 'Joueur' : 'IA';
+
   if (wheelImageEl) {
     if (player === 'player') {
       wheelImageEl.classList.remove('disabled');
@@ -203,9 +195,11 @@ function setTurn(player, { notifyWheel = true } = {}) {
       wheelImageEl.title = "Tour de l'IA — vous ne pouvez pas tourner";
     }
   }
+
   if (notifyWheel && wheelFrame && wheelFrame.contentWindow) {
     wheelFrame.contentWindow.postMessage({ action: 'setTurn', player }, '*');
   }
+
   // mettre à jour les interactions de la main si en phase de jeu
   updateHandInteraction();
   // Si effet skipNextTurn présent, consommer et passer au suivant
@@ -227,12 +221,13 @@ function nextTurn() {
   setTurn(currentTurn === 'player' ? 'ia' : 'player');
 }
 setTurn(currentTurn, { notifyWheel: false });
+//FIN 
+
 function formatTime(seconds) {
   const min = Math.floor(seconds / 60).toString().padStart(2, '0');
   const sec = (seconds % 60).toString().padStart(2, '0');
   return `${min}:${sec}`;
 }
-
 
 wheelImageEl.addEventListener("click", function() {
   if (currentTurn !== 'player') return;
@@ -268,11 +263,13 @@ const arenaSlots = {
     { x: 0.8, y: 0.2, occupied: false }
   ]
 };
+
 function fillArenaSlots() {
   if (playerSlotsFilled >= 4 && iaSlotsFilled >= 4) {
     arenaSlots.player.forEach(slot => slot.occupied = true);
     arenaSlots.ia.forEach(slot => slot.occupied = true);
     console.log('État des slots arène:', arenaSlots);
+
     // On passe en phase de jeu (tour par tour) : on désactive la roue désormais
     if (!playPhase) {
       playPhase = true;
@@ -280,45 +277,43 @@ function fillArenaSlots() {
       // mettre à jour interactions pour n'autoriser qu'un dépôt par tour
       updateHandInteraction();
     }
+
     // Démarrer la partie si tous les slots sont remplis
     startPartieIfReady();
   }
 }
+
 document.getElementById("close-popup").addEventListener("click", function () {
   wheelPopup.style.display = "none";
 });
 window.addEventListener("click", function (e) {
   if (e.target === wheelPopup) wheelPopup.style.display = "none";
 });
-// =======================================
-//DECLARATION DES CARTES (OMISE ICI)
-//ZONE A CONSIDERER
-// =======================================
-
+//Déclaration cartes
 const POINTS = [
-  { id: "pt_25",  typeId: "type_point", label: "+25s",  img: "25Points.jpg",   description: "Ajoute 25 points au score" },
+  { id: "pt_25",  typeId: "type_point", label: "+25s",  img: "3d-alarm.png",   description: "Ajoute 25 points au score" },
   { id: "pt_50",  typeId: "type_point", label: "+50s",  img: "clock_2.png",    description: "Ajoute 50 points au score" },
-  { id: "pt_75",  typeId: "type_point", label: "+75s",  img:"75Points.jpg",    description: "Ajoute 75 points au score" },
-  { id: "pt_100", typeId: "type_point", label: "+100s", img:"100Points.jpg",   description: "Ajoute 100 points au score" },
+  { id: "pt_75",  typeId: "type_point", label: "+75s",  img:"clock_3.png",    description: "Ajoute 75 points au score" },
+  { id: "pt_100", typeId: "type_point", label: "+100s", img:"clock_4.png",   description: "Ajoute 100 points au score" },
   { id: "pt_150", typeId: "type_point", label: "+150s", img:"clock.png",     description: "Ajoute 150 points au score" },
-  { id: "pt_200", typeId: "type_point", label: "+200s", img:"200Points.jpg",     description: "Ajoute 200 points au score" }
+  { id: "pt_200", typeId: "type_point", label: "+200s", img:"clock.png",     description: "Ajoute 200 points au score" }
 ];
 const ATTAQUES = [
   { id: "atk_vision", typeId: "type_attaque", label: "visionnaire",img: "visionary.png", description: "Permet de voir à l'avance les effets" },
-  { id: "atk_stop",   typeId: "type_attaque", label: "stop",  img:"Stop.jpg",      description: "Stoppe la roue de l'adversaire (sa prochaine action de roue sera bloquée)" },
-  { id: "atk_echange",typeId: "type_attaque", label: "échange", img:"EchangeForced.jpg",   description: "Échange forcé de points entre joueurs" } ,
-  { id: "atk_vol",    typeId: "type_attaque", label: "vol", img:"PickPocket.jpg",    description: "Vole 50 points à l'adversaire" },
-  { id: "atk_destruction", typeId: "type_attaque", label: "destruction", img:"blast.png", description: "Détruit une carte (inflige -60 points à l'adversaire)" },
-  { id: "atk_reduction", typeId: "type_attaque", label: "réduction", img:"Reduction.jpg", description: "Réduit le temps adverse de 30 secondes" },
+  { id: "atk_stop",   typeId: "type_attaque", label: "stop",  img:"stop.png",      description: "Stoppe la roue de l'adversaire (sa prochaine action de roue sera bloquée)" },
+  { id: "atk_echange",typeId: "type_attaque", label: "échange", img:"echange.png",   description: "Échange forcé de points entre joueurs" } ,
+  { id: "atk_vol",    typeId: "type_attaque", label: "vol", img:"bandit.png",    description: "Vole 50 points à l'adversaire" },
+  { id: "atk_destruction", typeId: "type_attaque", label: "destruction", img:"explosion.png", description: "Détruit une carte (inflige -60 points à l'adversaire)" },
+  { id: "atk_reduction", typeId: "type_attaque", label: "réduction", img:"limited_2.png", description: "Réduit le temps adverse de 30 secondes" },
   { id: "atk_limitation", typeId: "type_attaque", label: "limitation", img: "sablier.png", description: "Limite les gains adverses (applique -25% sur gains pendant 30s)" }
 ];
 const DEFENSES = [
-  { id: "def_masque", typeId: "type_defense", label: "masque", img:"Rideau_noir.jpg", description: "Masque les effets entrants (bloque la prochaine attaque)" },
-  { id: "def_blocage", typeId: "type_defense", label: "blocage", img: "bloqued.jpg", description: "Bloque une attaque (idem masque)" },
-  { id: "def_renvoi", typeId: "type_defense", label: "renvoi_Attaque", img:"Parades.jpg", description: "Renvoie la prochaine attaque à l'attaquant" },
+  { id: "def_masque", typeId: "type_defense", label: "masque", img:"theatre.png", description: "Masque les effets entrants (bloque la prochaine attaque)" },
+  { id: "def_blocage", typeId: "type_defense", label: "blocage", img: "no_malus.png", description: "Bloque une attaque (idem masque)" },
+  { id: "def_renvoi", typeId: "type_defense", label: "renvoi_Attaque", img:"renvoi.png", description: "Renvoie la prochaine attaque à l'attaquant" },
   { id: "def_explosion", typeId: "type_defense", label: "explosion_Nettoyage", img: "exploseEtNettoi.png", description: "Explose et inflige -100 points à l'adversaire" },
-  { id: "def_bouclier", typeId: "type_defense", label: "bouclier", img:"bouclier.jpg", description: "Ajoute une protection temporaire (2 attaques)" },
-  { id: "def_restauration", typeId: "type_defense", label: "restauration_Etat", img: "Restauration.jpg", description: "Restaure 30 secondes au timer" },
+  { id: "def_bouclier", typeId: "type_defense", label: "bouclier", img:"bouclier.png", description: "Ajoute une protection temporaire (2 attaques)" },
+  { id: "def_restauration", typeId: "type_defense", label: "restauration_Etat", img: "super-power.png", description: "Restaure 30 secondes au timer" },
   { id: "def_suppression", typeId: "type_defense", label: "suppresion_malus", img: "no-bomb.png", description: "Supprime un malus actif" }
 ];
 const MALUS = [
@@ -326,7 +321,7 @@ const MALUS = [
   { id: "malus_division", typeId: "type_malus", label: "division_points_2", img: "division.png", description: "Divise les points du joueur par 2" },
   { id: "malus_perteTour", typeId: "type_malus", label: "aucun_gain_tout_perdu", img: "perte.png", description: "Perd le prochain tour (skip)" },
   { id: "malus_reductionInv", typeId: "type_malus", label: "réduction_temporaire_inventaire", img: "réduction.png", description: "Réduit l'efficacité des gains (-20% pendant 30s)" },
-  { id: "malus_perte50",typeId: "type_malus", label: "perte_50secs", img:"50_CountDown.jpg", description: "Perte de 50 secondes" },
+  { id: "malus_perte50",typeId: "type_malus", label: "perte_50secs", img:"Moins-50.png", description: "Perte de 50 secondes" },
   { id: "malus_disparition",typeId: "type_malus", label: "disparition_joker", img: "Disparition_Joker.png", description: "Un joker de l'adversaire est désactivé (si présent)" },
   { id: "malus_reduction1", typeId: "type_malus", label:"réduction_inventaire_1", img: "Moins-1.png", description: "Réduit l'inventaire (effet logique, -10 points appliqués maintenant)" },
   { id: "malus_perte30",typeId: "type_malus", label: "perte_30%_temps", img: "Perte_30.png", description: "Perte de 30% du temps restant" },
@@ -334,13 +329,13 @@ const MALUS = [
   { id: "malus_blocJoker",typeId: "type_malus", label: "blocage_joker_while_3mins", img:"no-bomb.png", description: "Pas de joker pendant 3 minutes" }
 ];
 const BONUS = [
-  { id: "bonus_supprMalus",typeId: "type_bonus", label: "supression_All_malus_Actifs", img: "Offre.jpg", description: "Supprime tous les malus actifs" },
-  { id: "bonus_x3", typeId: "type_bonus",  label: "Temps_multiplié_x3", img:"Offre.jpg", description: "Prochain gain x3 (1 utilisation)" },
-  { id: "bonus_jokerHasard",typeId: "type_bonus", label: "Gagner_joker_hasard", img: "Offre.jpg", description: "Reçoit un joker aléatoire (flag)" },
+  { id: "bonus_supprMalus",typeId: "type_bonus", label: "supression_All_malus_Actifs", img: "cadeau_3.png", description: "Supprime tous les malus actifs" },
+  { id: "bonus_x3", typeId: "type_bonus",  label: "Temps_multiplié_x3", img:"cadeau.png", description: "Prochain gain x3 (1 utilisation)" },
+  { id: "bonus_jokerHasard",typeId: "type_bonus", label: "Gagner_joker_hasard", img: "cadeau_7.png", description: "Reçoit un joker aléatoire (flag)" },
   { id: "bonus_carteHasard",typeId: "type_bonus",  label: "Gagner_Carte_hasard", img:"cadeau_6.png", description: "Donne +50 points" },
   { id: "bonus_plus30", typeId: "type_bonus", label:"Ajout_30%_All_gains", img: "cadeau_5.png", description: "Ajoute +30% aux gains pendant 30s" },
   { id: "bonus_slots", typeId: "type_bonus", label:"Ajout_2_Slots_Cartes", img: "cadeau_4.png", description: "Ajoute 2 slots (effet logique : +40 points maintenant)" },
-  { id: "bonus_double",typeId: "type_bonus",  label:"Double_Points_gagnés", img: "Offre.jpg", description: "Prochain gain x2 (1 utilisation)" }
+  { id: "bonus_double",typeId: "type_bonus",  label:"Double_Points_gagnés", img: "cadeau.png", description: "Prochain gain x2 (1 utilisation)" }
 ];
 const JOKERS = [
   { id: "joker_limite",typeId: "type_joker",  label: "Limitation_Effet_Autre_Carte", img: "joker_2.png", description: "Imite l’effet d’une autre carte (flag)" },
@@ -360,15 +355,18 @@ function getCardImagePath(cardKey) {
   }
   return 'Card_Empty.jpg';
 }
+
 const effects = {
   player: {},
   ia: {}
 };
+
 // Utilitaires
 function getOpponent(player) {
   return player === 'player' ? 'ia' : 'player';
 }
 function safeLog(...args) { console.log('[RULES]', ...args); }
+
 // UI update helpers (utilisent tes éléments si présents)
 function updateScoresUI() {
   const sp = document.getElementById('score-player');
@@ -382,180 +380,26 @@ function updateTimersUI() {
   if (tp) tp.textContent = formatTime(Math.max(0, timers.player));
   if (ti) ti.textContent = formatTime(Math.max(0, timers.ia));
 }
-
 function checkVictoryOrTimeout() {
-  // Ne rien faire si déjà terminé
-  if (_gameEnded) return true;
-  // 1) Vérifier victoires par score (prioritaire)
-  const playerReached = (scores.player || 0) >= 1000;
-  const iaReached = (scores.ia || 0) >= 1000;
-  if (playerReached || iaReached) {
-    // Si les deux atteignent, comparer scores
-    if (playerReached && iaReached) {
-      if (scores.player > scores.ia) {
-        endGame('player', 'Les deux ont atteint 1000, le joueur a le score le plus élevé.');
-      } else if (scores.ia > scores.player) {
-        endGame('ia', 'Les deux ont atteint 1000, l\'IA a le score le plus élevé.');
-      } else {
-        endGame(null, 'Les deux ont atteint 1000 — match nul.');
-      }
-      return true;
-    }
-    // Un seul a atteint 1000
-    if (playerReached) { endGame('player', 'Score atteint (1000 points)'); return true; }
-    if (iaReached) { endGame('ia', 'Score atteint (1000 points)'); return true; }
+  // Victoire par score
+  if (scores.player >= 1000 || scores.ia >= 1000) {
+    if (partieInterval) clearInterval(partieInterval);
+    const winner = scores.player >= 1000 ? 'Joueur' : 'IA';
+    alert(`${winner} a gagné (1000 points atteint).`);
+    safeLog('Partie terminée par score', scores);
+    return true;
   }
-  // 2) Vérifier timeout(s)
-  const playerTimedOut = (timers.player || 0) <= 0;
-  const iaTimedOut = (timers.ia || 0) <= 0;
-  if (playerTimedOut || iaTimedOut) {
-    // Si les deux à 0 -> décider par score
-    if (playerTimedOut && iaTimedOut) {
-      if (scores.player > scores.ia) endGame('player', 'Les deux ont manqué de temps — le joueur a le meilleur score.');
-      else if (scores.ia > scores.player) endGame('ia', 'Les deux ont manqué de temps — l\'IA a le meilleur score.');
-      else endGame(null, 'Les deux ont manqué de temps et les scores sont égaux — match nul.');
-      return true;
-    }
-    // Un seul a time-out -> l'autre gagne
-    if (playerTimedOut) { endGame('ia', 'Le joueur a manqué de temps.'); return true; }
-    if (iaTimedOut) { endGame('player', 'L\'IA a manqué de temps.'); return true; }
+  // Timeout géré ailleurs (startPartieIfReady) mais on peut vérifier rapidement
+  if (timers.player <= 0 || timers.ia <= 0) {
+    if (partieInterval) clearInterval(partieInterval);
+    if (timers.player <= 0 && timers.ia <= 0) alert('Temps écoulé pour les deux ! Match nul.');
+    else if (timers.player <= 0) alert('Joueur a perdu le temps ! Partie terminée.');
+    else alert('IA a perdu le temps ! Partie terminée.');
+    safeLog('Partie terminée par timeout', timers);
+    return true;
   }
-  // Rien de terminé
   return false;
 }
-
-
-function showVictoryPopup({ winner = null, loser = null, winnerScore = 0, loserScore = 0, reason = '' } = {}) {
-  // Empêcher la création multiple
-  if (document.getElementById('victory-popup-root')) return;
-  // Injecter CSS minimal pour style "fantasy / feu"
-  const styleId = 'victory-popup-styles';
-  if (!document.getElementById(styleId)) {
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = `
-      @keyframes vp-entrance { 0% { transform: scale(.6); opacity:0 } 60% { transform: scale(1.05); opacity:1 } 100% { transform: scale(1); } }
-      #victory-popup-root { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; z-index:9999; pointer-events:auto; }
-      .vp-backdrop { position:absolute; inset:0; background: radial-gradient(rgba(0,0,0,.6), rgba(0,0,0,.85)); backdrop-filter: blur(2px); }
-      .vp-card { position:relative; min-width:320px; max-width:90%; padding:22px; border-radius:16px; box-shadow: 0 10px 30px rgba(0,0,0,.6); background: linear-gradient(180deg,#120806 0%, #2b0f07 100%); color:#ffdca8; transform-origin:center; animation: vp-entrance .45s ease-out; border:2px solid rgba(255,160,0,.12); }
-      .vp-title { font-size:20px; font-weight:700; margin-bottom:8px; text-align:center; letter-spacing:1px; text-shadow: 0 0 8px rgba(255,140,0,.25); }
-      .vp-main { display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:12px; }
-      .vp-winner { flex:1; padding:12px; border-radius:12px; background: linear-gradient(90deg, rgba(255,200,90,.06), rgba(255,120,20,.03)); box-shadow: 0 6px 18px rgba(255,120,20,.06); transform: scale(1.03); border:1px solid rgba(255,200,90,.06); }
-      .vp-loser { flex:1; padding:10px; border-radius:10px; opacity:0.7; text-align:center; }
-      .vp-scores { font-family: monospace; font-size:18px; margin-top:10px; text-align:center; }
-      .vp-reason { font-size:13px; opacity:0.85; text-align:center; margin-bottom:10px; }
-      .vp-actions { display:flex; gap:10px; justify-content:center; margin-top:8px; }
-      .vp-btn { padding:10px 14px; border-radius:10px; cursor:pointer; border:0; font-weight:700; }
-      .vp-replay { background: linear-gradient(90deg,#ffb66a,#ff6b3a); color:#2b0700; box-shadow: 0 6px 20px rgba(255,100,20,.12); }
-      .vp-close { background: transparent; color:#ffd6b3; border:1px solid rgba(255,255,255,.06); }
-      /* petites flammes (simple) */
-      .vp-flame { position:absolute; width:16px; height:28px; background: radial-gradient(circle at 40% 30%, #ffd98a 0%, #ff6b3a 40%, transparent 60%); filter: blur(.6px); opacity:0.85; transform-origin:center; animation: flame-flicker 1.1s infinite; }
-      @keyframes flame-flicker { 0% { transform: translateY(0) scale(1); } 50% { transform: translateY(-3px) scale(1.05); } 100% { transform: translateY(0) scale(1); } }
-      @media (max-width:420px) { .vp-card { padding:14px; } .vp-title { font-size:16px; } }
-    `;
-    document.head.appendChild(style);
-  }
-  // Construire la structure DOM
-  const root = document.createElement('div');
-  root.id = 'victory-popup-root';
-  const backdrop = document.createElement('div');
-  backdrop.className = 'vp-backdrop';
-  backdrop.addEventListener('click', () => {
-    try { document.body.removeChild(root); _gameEnded = true; } catch (e) {}
-  });
-  const card = document.createElement('div');
-  card.className = 'vp-card';
-  // Title
-  const title = document.createElement('div');
-  title.className = 'vp-title';
-  title.textContent = winner ? (winner === 'player' ? 'Victoire du Joueur' : 'Victoire de l\'IA') : 'Match nul';
-  // Main area (winner / loser)
-  const main = document.createElement('div');
-  main.className = 'vp-main';
-  const winnerBox = document.createElement('div');
-  winnerBox.className = 'vp-winner';
-  winnerBox.innerHTML = `<div style="font-weight:800; font-size:16px; text-align:center;">${winner ? (winner === 'player' ? 'Joueur' : 'IA') : 'Aucun'}</div>
-    <div class="vp-scores">Score: ${winnerScore}</div>`;
-  const loserBox = document.createElement('div');
-  loserBox.className = 'vp-loser';
-  loserBox.innerHTML = `<div style="font-weight:700; font-size:14px;">${loser ? (loser === 'player' ? 'Joueur' : 'IA') : ' — '}</div>
-    <div class="vp-scores">${loserScore}</div>`;
-  main.appendChild(winnerBox);
-  main.appendChild(loserBox);
-  const reasonEl = document.createElement('div');
-  reasonEl.className = 'vp-reason';
-  reasonEl.textContent = reason || '';
-  const actions = document.createElement('div');
-  actions.className = 'vp-actions';
-  const replayBtn = document.createElement('button');
-  replayBtn.className = 'vp-btn vp-replay';
-  replayBtn.textContent = 'Rejouer';
-  replayBtn.addEventListener('click', () => {
-    // Si une fonction reset globale existe, l'appeler; sinon utiliser replayResetGame interne
-    try {
-      if (typeof resetGame === 'function') {
-        resetGame();
-      } else {
-        // fonction locale de reset sûre (implémentée ci-dessous)
-        replayResetGame();
-      }
-    } catch (e) { safeLog('Erreur au Rejouer:', e); }
-    try { document.body.removeChild(root); } catch (e) {}
-  });
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'vp-btn vp-close';
-  closeBtn.textContent = 'Fermer';
-  closeBtn.addEventListener('click', () => {
-    try { document.body.removeChild(root); } catch (e) {}
-  });
-  actions.appendChild(replayBtn);
-  actions.appendChild(closeBtn);
-  // petites flammes décoratives
-  const flame1 = document.createElement('div'); flame1.className = 'vp-flame'; flame1.style.left = '8%'; flame1.style.top = '8%';
-  const flame2 = document.createElement('div'); flame2.className = 'vp-flame'; flame2.style.right = '8%'; flame2.style.bottom = '10%';
-  card.appendChild(title);
-  card.appendChild(main);
-  card.appendChild(reasonEl);
-  card.appendChild(actions);
-  card.appendChild(flame1);
-  card.appendChild(flame2);
-  root.appendChild(backdrop);
-  root.appendChild(card);
-  document.body.appendChild(root);
-  // Marquer le jeu comme terminé (sécurise double appels)
-  _gameEnded = true;
-}
-
-
-function replayResetGame() {
-  // Nettoyage intervalle si encore présent
-  try { if (partieInterval) { clearInterval(partieInterval); partieInterval = null; } } catch (e) {}
-  // Réinitialiser flags & états essentiels (non-destructif)
-  _gameEnded = false;
-  playerSlotsFilled = 0;
-  iaSlotsFilled = 0;
-  // Réinitialiser scores et timers aux valeurs initiales (conformes au contrat)
-  scores.player = 150;
-  scores.ia = 150;
-  timers.player = PARTIE_DURATION;
-  timers.ia = PARTIE_DURATION;
-  // Vider decks localement (garde structure)
-  playerDeck = Array.isArray(playerDeck) ? [] : playerDeck;
-  iaDeck = Array.isArray(iaDeck) ? [] : iaDeck;
-  // Réactiver interactions des cartes (non destructif)
-  try {
-    document.querySelectorAll(".card").forEach(c => { c.style.pointerEvents = "auto"; c.style.opacity = '1'; });
-  } catch (e) {}
-  // Mettre à jour UI
-  try { updateStatsUI(); updateScoresUI(); updateTimersUI(); } catch (e) {}
-  // Recréer l'état d'arène si fonctions existantes
-  try { if (typeof resetArenaSlots === 'function') resetArenaSlots(); } catch (e) {}
-  try { if (typeof createDeckUI === 'function') createDeckUI(); } catch (e) {}
-  // Relancer la logique de démarrage si possible
-  try { startPartieIfReady(); } catch (e) {}
-  safeLog('replayResetGame : état remis à zéro (non-destructif).');
-}
-
 
 const scoreUpdater = (typeof addScore === 'function')
   ? addScore
@@ -564,6 +408,7 @@ const scoreUpdater = (typeof addScore === 'function')
       updateScoresUI();
       checkVictoryOrTimeout();
     };
+
 // Helpers arène & main
 function getArenaSlotDOMs(player) {
   const el = arenaEl;
@@ -592,72 +437,6 @@ function removeArenaCardAtSlot(slotDOM, owner) {
     arenaSlots[owner][idx].occupied = false;
   }
   return true;
-}
-
-function cleanArenaSlot(slotDOM, owner, delay = 600) {
-  if (!slotDOM) return;
-  // Défensive : obtenir l'image et l'index
-  const idxStr = slotDOM.dataset ? slotDOM.dataset.slot : null;
-  const idx = idxStr ? parseInt(idxStr, 10) : NaN;
-  const img = slotDOM.querySelector ? slotDOM.querySelector('img.arena-card') : null;
-  // Laisser un court délai pour voir l'animation/effet avant suppression
-  setTimeout(() => {
-    try {
-      // 1) tenter la méthode existante
-      if (typeof removeArenaCardAtSlot === 'function') {
-        // removeArenaCardAtSlot gère image + occupied flag + tableau logique
-        const ok = removeArenaCardAtSlot(slotDOM, owner);
-        if (ok) {
-          safeLog('cleanArenaSlot : removeArenaCardAtSlot OK pour', owner, 'slot', idx);
-          return;
-        }
-      }
-      // 2) fallback manuel : vider l'image et flags DOM
-      if (img) {
-        try { img.src = ''; } catch(e) {}
-        try { img.style.display = 'none'; img.style.opacity = 0; } catch(e) {}
-      }
-      try { slotDOM.classList.remove('occupied'); } catch(e) {}
-      // mettre à jour le tableau logique si possible
-      if (!Number.isNaN(idx) && Array.isArray(arenaSlots[owner]) && arenaSlots[owner][idx]) {
-        arenaSlots[owner][idx].occupied = false;
-      }
-      safeLog('cleanArenaSlot fallback nettoyé pour', owner, 'slot', idx);
-    } catch (err) {
-      console.warn('cleanArenaSlot erreur:', err);
-    }
-  }, delay);
-}
-function cleanHandSlot(slotEl, delay = 600) {
-  if (!slotEl) return;
-  // Protection si déjà nettoyé
-  try {
-    // Marquer d'abord comme "utilisé" visuellement pour UX (si pas déjà fait)
-    if (!slotEl.style.opacity || slotEl.style.opacity !== '0.5') {
-      slotEl.style.opacity = '0.5';
-      slotEl.style.pointerEvents = 'none';
-    }
-  } catch (e) { /* ignore style set errors */ }
-  setTimeout(() => {
-    try {
-      // Vider visuel + logique
-      slotEl.style.backgroundImage = '';
-      slotEl.style.backgroundSize = '';
-      slotEl.style.backgroundPosition = '';
-      slotEl.style.border = '';
-      slotEl.style.cursor = '';
-      // Laisser opacity à 0.5 : placeCardInHand considère '0.5' comme slot libre
-      slotEl.style.opacity = '0.5';
-      slotEl.style.pointerEvents = 'none';
-      // supprimer la donnée liée si présente
-      if (slotEl.dataset && typeof slotEl.dataset.cardKey !== 'undefined') {
-        delete slotEl.dataset.cardKey;
-      }
-      safeLog('Slot de main nettoyé.', slotEl);
-    } catch (err) {
-      console.warn('cleanHandSlot erreur', err);
-    }
-  }, delay);
 }
 function placeCardImageInArena(player, imgSrc) {
   const target = findFreeArenaSlotDOM(player);
@@ -690,6 +469,7 @@ function placeCardInHand(player, imgSrc) {
   }
   return false;
 }
+
 // Voler une carte dans l’arène (DOM) : clone visuel + transfert logique
 function stealArenaCard(fromPlayer, toPlayer) {
   const victimSlot = findRandomOccupiedArenaSlotDOM(fromPlayer);
@@ -699,9 +479,12 @@ function stealArenaCard(fromPlayer, toPlayer) {
   }
   const img = victimSlot.querySelector('img.arena-card');
   if (!img || !img.src) return false;
+
   const src = img.src;
+
   // Retirer du slot adverse
   removeArenaCardAtSlot(victimSlot, fromPlayer);
+
   // Tenter de placer dans l'arène du voleur
   const placed = placeCardImageInArena(toPlayer, src);
   if (placed) {
@@ -714,6 +497,7 @@ function stealArenaCard(fromPlayer, toPlayer) {
     safeLog(`${toPlayer} a volé une carte depuis ${fromPlayer} (placée en main).`);
     return true;
   }
+
   // fallback : donner des points si pas de place
   scoreUpdater(toPlayer, 25);
   safeLog(`${toPlayer} a volé une carte mais pas d'emplacement — crédité +25 pts.`);
@@ -735,11 +519,8 @@ function randomCardFromAll() {
   const all = [].concat(...Object.values(CARD_MANAGER));
   return all[Math.floor(Math.random() * all.length)];
 }
-// =======================================
-//FONCTION D'ENSEMBLE D'ANIMATION ET FONCTION APPLICATION REGLE ET EFFET + TOAST (OMISE ICI)
-//ZONE A CONSIDERER
-// =======================================
 
+// ------- ANIMATIONS UTILES --------
 function pulse(target, { color = 'yellow', scale = 1.2, duration = 500 } = {}) {
   if (!target) return;
   target.style.transition = `transform ${duration/1000}s ease, box-shadow ${duration/1000}s ease`;
@@ -2021,15 +1802,20 @@ function applyCardEffect(player, cardId) {
 
 const arenaMusic = new Audio('Black Mountains.mp3');
 arenaMusic.loop = true; // boucle infinie
+// B.FONCTION DE PLACEMENT OU DEPOT CARTE
 function assignCardToSlot(player, cardKey) {
   const handEl = document.querySelector(`.hand.${player}`);
   const slotIndex = (player === "player") ? playerSlotsFilled : iaSlotsFilled;
   const slots = handEl.querySelectorAll(".card");
+
   if (slotIndex >= slots.length) return;
+
   const nextSlot = slots[slotIndex];
   const thisCardKey = cardKey; // 🔒 Carte distribuée
+
   // Stocker le cardKey sur l'élément pour que l'IA puisse le lire ensuite
   nextSlot.dataset.cardKey = thisCardKey;
+
   // ----------- Distribution dans la main -----------
   nextSlot.style.backgroundImage = `url(${getCardImagePath(thisCardKey)})`;
   nextSlot.style.backgroundSize = "cover";
@@ -2038,95 +1824,101 @@ function assignCardToSlot(player, cardKey) {
   nextSlot.style.cursor = "pointer";
   nextSlot.style.opacity = '1';
   nextSlot.style.pointerEvents = 'auto';
+
   // ----------- Incrémentation immédiate dans la main -----------
   if (player === "player") {
     playerSlotsFilled++;
   } else {
     iaSlotsFilled++;
   }
+
   // ----------- Interaction : dépôt dans les slots de l’arène -----------
-nextSlot.addEventListener("click", () => {
-  // Protection simple : si ce slot a été utilisé, ignorer
-  if (nextSlot.style.pointerEvents === 'none' || nextSlot.style.opacity === '0.5') return;
-  // Si on est en phase de jeu, vérifier que c'est bien le tour du joueur et qu'il n'a pas déjà joué
-  if (playPhase && currentTurn !== player) {
-    safeLog('Ce n\'est pas le tour de', player, '— dépôt ignoré.');
-    return;
-  }
-  if (playPhase && turnActionDone) {
-    safeLog(player, 'a déjà joué ce tour — dépôt ignoré.');
-    return;
-  }
-  console.log(`[DEBUG] Clic sur une carte du hand (${player}) - Carte:`, thisCardKey);
-  const arenaElLocal = document.getElementById("arena");
-  if (!arenaElLocal) {
-    console.error("[ERREUR] Élément #arena introuvable dans le DOM !");
-    return;
-  }
-  // Chercher les slots DOM invisibles correspondant au joueur
-  const arenaSlotsDOM = Array.from(arenaElLocal.querySelectorAll(`.drop-slots.${player} .slot`));
-  const freeSlotDOM = arenaSlotsDOM.find(s => !s.classList.contains("occupied"));
-  if (!freeSlotDOM) {
-    console.warn(`[WARN] Plus de slots disponibles pour ${player} dans l’arène.`);
-    return;
-  }
-  console.log(`[DEBUG] Slot DOM trouvé pour ${player}:`, freeSlotDOM);
-  // --- Utiliser l'image déjà présente dans le slot ---
-  const slotImg = freeSlotDOM.querySelector("img.arena-card");
-  if (slotImg) {
-    slotImg.src = getCardImagePath(thisCardKey);
-    slotImg.style.display = "block"; // rendre visible
-    slotImg.style.opacity = "1";
-  } else {
-    console.error("[ERREUR] Aucun <img> trouvé dans le slot. Vérifie ton HTML.");
-    return;
-  }
-  // Marquer le slot comme occupé
-  freeSlotDOM.classList.add("occupied");
-  // Mettre à jour le tableau logique
-  const idx = parseInt(freeSlotDOM.dataset.slot, 10);
-  if (!Number.isNaN(idx) && Array.isArray(arenaSlots[player]) && arenaSlots[player][idx]) {
-    arenaSlots[player][idx].occupied = true;
-  }
-  // Marquer la carte dans la main comme utilisée
-  nextSlot.style.opacity = 0.5;
-  nextSlot.style.pointerEvents = "none";
-  console.log(`[DEBUG] Carte déposée dans l’arène (${player}) sur le slot index=${freeSlotDOM.dataset.slot}`);
-  try {
-    applyCardEffect(player, thisCardKey);
-  } catch (err) {
-    console.error("Erreur lors de l'application de la règle:", err);
-  }
-    // ---> Nettoyage du slot de main (player ou ia) : libération pour remplacement
-    // -- après applyCardEffect : nettoyage main + nettoyage arène --
-  try {
-    // nettoyage du slot de main (libération pour remplacement)
-    try { cleanHandSlot(nextSlot, 600); } catch(e) { console.warn('cleanHandSlot failed', e); }
-    // nettoyage du slot d'arène où la carte a été placée (libération après effet)
-    try { cleanArenaSlot(freeSlotDOM, player, 800); } catch(e) { console.warn('cleanArenaSlot failed', e); }
-  } catch (e) {
-    console.warn('Erreur pendant les cleanups post-play :', e);
-  }
-  
-  // Si en playPhase, verrouiller l'action pour éviter multi-dépôts et mettre à jour interactions
-  if (playPhase) {
-    turnActionDone = true;
-    updateHandInteraction();
-  }
-  // Vérifier si l’arène est complète et remplir les slots
-  fillArenaSlots();
-  // --- Lancer la musique de l'arène au premier slot rempli ---
-  if (arenaMusic.paused) {
-    arenaMusic.play().catch(err => console.warn("Impossible de jouer la musique:", err));
-  }
-  // Si on est en phase de jeu (les deux mains sont pleines), passer le tour après pose
-  if (playerSlotsFilled >= 4 && iaSlotsFilled >= 4) {
-    setTimeout(() => {
-      nextTurn();
-    }, 400);
-  }
-});
+  nextSlot.addEventListener("click", () => {
+    // Protection simple : si ce slot a été utilisé, ignorer
+    if (nextSlot.style.pointerEvents === 'none' || nextSlot.style.opacity === '0.5') return;
+
+    // Si on est en phase de jeu, vérifier que c'est bien le tour du joueur et qu'il n'a pas déjà joué
+    if (playPhase && currentTurn !== player) {
+      safeLog('Ce n\'est pas le tour de', player, '— dépôt ignoré.');
+      return;
+    }
+    if (playPhase && turnActionDone) {
+      safeLog(player, 'a déjà joué ce tour — dépôt ignoré.');
+      return;
+    }
+
+    console.log(`[DEBUG] Clic sur une carte du hand (${player}) - Carte:`, thisCardKey);
+
+    const arenaElLocal = document.getElementById("arena");
+    if (!arenaElLocal) {
+      console.error("[ERREUR] Élément #arena introuvable dans le DOM !");
+      return;
+    }
+
+    // Chercher les slots DOM invisibles correspondant au joueur
+    const arenaSlotsDOM = Array.from(arenaElLocal.querySelectorAll(`.drop-slots.${player} .slot`));
+    const freeSlotDOM = arenaSlotsDOM.find(s => !s.classList.contains("occupied"));
+
+    if (!freeSlotDOM) {
+      console.warn(`[WARN] Plus de slots disponibles pour ${player} dans l’arène.`);
+      return;
+    }
+
+    console.log(`[DEBUG] Slot DOM trouvé pour ${player}:`, freeSlotDOM);
+
+    // --- Utiliser l'image déjà présente dans le slot ---
+    const slotImg = freeSlotDOM.querySelector("img.arena-card");
+    if (slotImg) {
+      slotImg.src = getCardImagePath(thisCardKey);
+      slotImg.style.display = "block"; // rendre visible
+      slotImg.style.opacity = "1";
+    } else {
+      console.error("[ERREUR] Aucun <img> trouvé dans le slot. Vérifie ton HTML.");
+      return;
+    }
+
+    // Marquer le slot comme occupé
+    freeSlotDOM.classList.add("occupied");
+
+    // Mettre à jour le tableau logique
+    const idx = parseInt(freeSlotDOM.dataset.slot, 10);
+    if (!Number.isNaN(idx) && Array.isArray(arenaSlots[player]) && arenaSlots[player][idx]) {
+      arenaSlots[player][idx].occupied = true;
+    }
+    // Marquer la carte dans la main comme utilisée
+    nextSlot.style.opacity = 0.5;
+    nextSlot.style.pointerEvents = "none";
+
+    console.log(`[DEBUG] Carte déposée dans l’arène (${player}) sur le slot index=${freeSlotDOM.dataset.slot}`);
+
+    try {
+      applyCardEffect(player, thisCardKey);
+    } catch (err) {
+      console.error("Erreur lors de l'application de la règle:", err);
+    }
+    // Si en playPhase, verrouiller l'action pour éviter multi-dépôts et mettre à jour interactions
+    if (playPhase) {
+      turnActionDone = true;
+      updateHandInteraction();
+    }
+    // Vérifier si l’arène est complète et remplir les slots
+    fillArenaSlots();
+     // --- Lancer la musique de l'arène au premier slot rempli ---
+    if (arenaMusic.paused) {
+      arenaMusic.play().catch(err => console.warn("Impossible de jouer la musique:", err));
+    }
+    // Si on est en phase de jeu (les deux mains sont pleines), passer le tour après pose (donc IA pourra jouer)
+    if (playerSlotsFilled >= 4 && iaSlotsFilled >= 4) {
+      setTimeout(() => {
+        
+        nextTurn();
+        // Bloquer la musique si on passe à la phase de roue
+       //arenaMusic.pause();
+      }, 400);
+    }
+  });
 }
+// A. FONCTION QUI AFFICHE LES SLOTS DE LA MAIN
 function getHandCards(player) {
   const hand = document.querySelector(`.hand.${player}`);
   if (!hand) return [];
@@ -2134,6 +1926,7 @@ function getHandCards(player) {
     .map(c => ({ el: c, key: c.dataset.cardKey || null }))
     .filter(x => x.key && x.el.style.opacity !== '0.5');
 }
+
 function parsePointFromId(id) {
   // ex: 'pt_150' => 150
   const parts = id.split('_');
@@ -2143,605 +1936,140 @@ function parsePointFromId(id) {
   }
   return 0;
 }
-// ---------------------- UI Deck & Actions ----------------------
-function createDeckUI() {
-  const handPlayer = document.querySelector('.hand.player');
-  const handIA = document.querySelector('.hand.ia');
-  if (!handPlayer || !handIA) return;
-  // --- PLAYER deck element (visuel, placé après .hand.player) ---
-  playerDeckEl = document.createElement('div');
-  playerDeckEl.className = 'deck-ui deck-player';
-  playerDeckEl.title = 'Deck Joueur';
-  playerDeckEl.innerHTML = '<div class="deck-back"></div><div class="deck-count">0</div>';
-  // placer après la main du joueur
-  handPlayer.parentNode.insertBefore(playerDeckEl, handPlayer.nextSibling);
-  playerDeckCountEl = playerDeckEl.querySelector('.deck-count');
-  // --- IA deck element (visuel) ---
-  iaDeckEl = document.createElement('div');
-  iaDeckEl.className = 'deck-ui deck-ia';
-  iaDeckEl.title = 'Deck IA';
-  iaDeckEl.innerHTML = '<div class="deck-back"></div><div class="deck-count">0</div>';
-  handIA.parentNode.insertBefore(iaDeckEl, handIA.nextSibling);
-  iaDeckCountEl = iaDeckEl.querySelector('.deck-count');
 
- 
-  // --- Mini menu joueur (inchangé fonctionnellement) ---
-  deckMenuEl = document.createElement('div');
-  deckMenuEl.className = 'deck-mini-menu hidden';
-  deckMenuEl.innerHTML =
-    '<button class="deck-action keep" title="Garder dans la main (si slot libre)">🖐️</button>' +
-    '<button class="deck-action send" title="Envoyer en arène">⚔️</button>' +
-    '<button class="deck-action replace" title="Remplacer une carte dans la main">🔄</button>' +
-    '<button class="deck-action reload" title="Recharger le deck (roue)">🃏</button>';
-  // insérer le mini-menu immédiatement après le deck du joueur
-  playerDeckEl.parentNode.insertBefore(deckMenuEl, playerDeckEl.nextSibling);
-  // handlers du mini-menu joueur (la logique existante est conservée)
-  deckMenuEl.querySelector('.keep').addEventListener('click', () => {
-    if (!playerDeck.length) { safeLog('Deck vide — rien à garder.'); return; }
-    handleKeepCard(playerDeck[0]);
-    toggleDeckMenu(false);
-  });
-  deckMenuEl.querySelector('.send').addEventListener('click', () => {
-    if (!playerDeck.length) { safeLog('Deck vide — rien à envoyer.'); return; }
-    handleSendCard(playerDeck[0]);
-    toggleDeckMenu(false);
-  });
-  deckMenuEl.querySelector('.replace').addEventListener('click', () => {
-    if (!playerDeck.length) { safeLog('Deck vide — rien à remplacer.'); return; }
-    handleReplaceCard(playerDeck[0]);
-    toggleDeckMenu(false);
-  });
-  deckMenuEl.querySelector('.reload').addEventListener('click', () => {
-    toggleDeckMenu(false);
-    requestWheelDeckSpin('player');
-  });
-  // clic sur l'icône du deck : toggle mini-menu (apparition locale, pas overlay)
-  playerDeckEl.addEventListener('click', () => {
-    if (!playerDeck.length) { safeLog('Deck joueur vide'); return; }
-    toggleDeckMenu();
-  });
-  // petit feedback pour l'IA deck (clic visuel uniquement)
-  iaDeckEl.addEventListener('click', () => {
-    if (!iaDeck.length) { safeLog('Deck IA vide'); return; }
-    iaDeckEl.classList.add('deck-bounce');
-    setTimeout(() => iaDeckEl.classList.remove('deck-bounce'), 220);
-  });
-  // ----------------------------
-  // --- MINI-MENU IA (INTÉGRÉ) ---
-  // ----------------------------
-  // --- Distinction visuelle ---
-const iaTitle = document.createElement('div');
-iaTitle.className = 'deck-title';
-iaTitle.textContent = 'Deck IA';
-iaDeckEl.appendChild(iaTitle);
-  let iaDeckMenuEl = iaDeckEl.querySelector('.deck-mini-menu.ia');
-  if (!iaDeckMenuEl) {
-    iaDeckMenuEl = document.createElement('div');
-    iaDeckMenuEl.className = 'deck-mini-menu ia hidden';
-    iaDeckMenuEl.style.pointerEvents = 'none'; // pour permettre des clicks programmés
-    iaDeckMenuEl.style.display = 'flex';
-    iaDeckMenuEl.style.gap = '6px';
-    iaDeckMenuEl.style.top = '350px';
-    iaDeckMenuEl.style.alignItems = 'center';
-    iaDeckMenuEl.innerHTML =
-      '<button class="deck-action keep" title="IA: Garder dans la main">🖐️</button>' +
-      '<button class="deck-action send" title="IA: Envoyer en arène">⚔️</button>' +
-      '<button class="deck-action replace" title="IA: Remplacer une carte">🔄</button>' +
-      '<button class="deck-action reload" title="IA: Recharger le deck (roue)">🃏</button>';
-    // placer le menu IA après le deck IA
-    iaDeckEl.parentNode.insertBefore(iaDeckMenuEl, iaDeckEl.nextSibling);
-    // wrapper utilitaire local pour déclencher visuel + handler
-    const makeIAActionWrapper = (actionKey, handlerFn) => {
-      return (ev) => {
-        try {
-          // animation visuelle (glow du bouton + tip)
-          try { animateIAAction(actionKey, { duration: 900 }); } catch (e) { /* ignore */ }
-          // message lisible sous la forme demandée (bonus)
-          try { showIATip(`IA utilise ${actionKey === 'keep' ? '🖐️ Garder' : actionKey === 'send' ? '⚔️ Envoyer' : actionKey === 'replace' ? '🔄 Remplacer' : '🃏 Recharger'}`, 900); } catch (e) { /* ignore */ }
-        } catch (err) {
-          console.warn('IA visual wrapper failed', err);
-        }
-        // appeler le handler réel (externe)
-        try {
-          if (typeof handlerFn === 'function') handlerFn();
-        } catch (err) {
-          console.error('IA handler threw', err);
-        }
-      };
-    };
-    // attacher listeners "forcés" aux boutons IA (permet aussi de simuler par .click())
-    const iaKeepBtn = iaDeckMenuEl.querySelector('.keep');
-    const iaSendBtn = iaDeckMenuEl.querySelector('.send');
-    const iaReplaceBtn = iaDeckMenuEl.querySelector('.replace');
-    const iaReloadBtn = iaDeckMenuEl.querySelector('.reload');
-    if (iaKeepBtn) iaKeepBtn.addEventListener('click', makeIAActionWrapper('keep', iaHandleKeepCard));
-    if (iaSendBtn) iaSendBtn.addEventListener('click', makeIAActionWrapper('send', iaHandleSendCard));
-    if (iaReplaceBtn) iaReplaceBtn.addEventListener('click', makeIAActionWrapper('replace', iaHandleReplaceCard));
-    if (iaReloadBtn) iaReloadBtn.addEventListener('click', () => {
-      // visual + tip et demande de spin pour l'ia
-      try { animateIAAction('reload', { duration: 900 }); } catch (e) { /* ignore */ }
-      try { showIATip('IA utilise 🃏 Recharger', 900); } catch (e) { /* ignore */ }
-      // demander spin roue (IA)
-      try { requestWheelDeckSpin('ia'); } catch (err) { console.warn('requestWheelDeckSpin failed', err); }
-    });
-    // Par défaut, garder le menu IA masqué (possibilité de l'afficher via CSS devtools)
-    // (ne pas interférer avec le layout)
-  }
-  // NOTE: on NE fait PAS de pointerEvents:none ici, pour permettre au code interne
-  // ou aux tests d'appeler iaDeckMenuEl.querySelector('button').click() si besoin.
-  // update visuel initial des decks
-  updateDeckUI('player');
-  updateDeckUI('ia');
-  // IMPORTANT: l'ancien appel à createIAActionUI() n'est plus nécessaire car le menu IA est intégré.
-  // Si tu veux garder la fonction legacy pour compatibilité, elle peut rester dans le code mais ne sera pas appelée ici.
-}
-
-
-
-
-function animateIAAction(actionKey, options = {}) {
-  const duration = options.duration || 900;
-  if (!iaDeckEl) return;
-  // Glow + shake
-  iaDeckEl.style.transition = `box-shadow 180ms ease, transform 180ms ease`;
-  iaDeckEl.style.boxShadow = '0 0 20px rgba(255,215,0,0.6)';
-  iaDeckEl.style.transform = 'translateX(-2px) rotate(-2deg)';
-  // Reflow pour déclencher l'animation
-  void iaDeckEl.offsetWidth;
-  iaDeckEl.style.transform = 'translateX(2px) rotate(2deg)';
-  setTimeout(() => {
-    iaDeckEl.style.transform = '';
-    iaDeckEl.style.boxShadow = '';
-  }, duration);
-  // Tip texte IA
-  showIATip(`IA → ${actionKey}`, duration);
-}
-function showIATip(text, duration = 900) {
-  if (!iaDeckEl) return;
-  const tip = iaDeckEl.querySelector('.ia-action-tip');
-  if (!tip) return;
-  tip.textContent = text;
-  tip.style.display = 'block';
-  tip.style.opacity = '0';
-  void tip.offsetWidth;
-  tip.style.opacity = '1';
-  setTimeout(() => {
-    tip.style.opacity = '0';
-    setTimeout(() => { tip.style.display = 'none'; }, 200);
-  }, duration);
-}
-
-function toggleDeckMenu(forceState) {
-  if (!deckMenuEl) return;
-  const isHidden = deckMenuEl.classList.contains('hidden');
-  if (typeof forceState === 'boolean') {
-    deckMenuEl.classList.toggle('hidden', !forceState);
-  } else {
-    deckMenuEl.classList.toggle('hidden');
-  }
-}
-function handleKeepCard(cardObj) {
-  if (playerSlotsFilled >= 4) { safeLog('Main pleine — impossible de garder.'); return; }
-  assignCardToSlot('player', cardObj.id);
-  playerDeck.shift();
-  updateDeckUI('player');
-  startPartieIfReady();
-}
-function handleSendCard(cardObj) {
-  const arenaElLocal = document.getElementById("arena");
-  if (!arenaElLocal) { safeLog('Arène introuvable'); return; }
-  const arenaSlotsDOM = Array.from(arenaElLocal.querySelectorAll(`.drop-slots.player .slot`));
-  const freeSlotDOM = arenaSlotsDOM.find(s => !s.classList.contains('occupied'));
-  if (!freeSlotDOM) { safeLog('Aucun slot libre en arène pour envoyer la carte.'); return; }
-  const slotImg = freeSlotDOM.querySelector('img.arena-card');
-  if (!slotImg) { console.error('Slot sans img'); return; }
-  slotImg.src = getCardImagePath(cardObj.id);
-  slotImg.style.display = 'block';
-  slotImg.style.opacity = '1';
-  freeSlotDOM.classList.add('occupied');
-  const idx = parseInt(freeSlotDOM.dataset.slot, 10);
-  if (!Number.isNaN(idx) && Array.isArray(arenaSlots.player) && arenaSlots.player[idx]) {
-    arenaSlots.player[idx].occupied = true;
-  }
-try { applyCardEffect('player', cardObj.id); } catch(e) { console.error(e); }
-  // --- Nettoyage automatique du slot d'arène placé par handleSendCard ---
-  // freeSlotDOM est le slot dans lequel on a placé l'image (défini plus haut)
-  setTimeout(() => {
-    try {
-      // freeSlotDOM est la référence trouvée plus haut ; si non dispo, chercher par image
-      const targetSlot = freeSlotDOM || (arenaSlotsDOM.length ? arenaSlotsDOM.find(s => s.classList.contains('occupied')) : null);
-      if (targetSlot) removeArenaCardAtSlot(targetSlot, 'player');
-    } catch (err) {
-      console.warn('Erreur nettoyage slot après handleSendCard:', err);
-    }
-  }, 600);
-  playerDeck.shift();
-  updateDeckUI('player');
-  fillArenaSlots();
-  startPartieIfReady();
-}
-function handleReplaceCard(cardObj) {
-  const handCards = getHandCards('player');
-  if (!handCards.length) { safeLog('Aucune carte en main à remplacer.'); return; }
-  // prompt minimal (compatible) ; on peut remplacer par UI plus tard
-  const idxStr = prompt(`Index de la carte à remplacer (0 - ${handCards.length - 1})`);
-  const idx = parseInt(idxStr, 10);
-  if (Number.isNaN(idx) || idx < 0 || idx >= handCards.length) { safeLog('Index invalide — annulation.'); return; }
-  const targetEl = handCards[idx].el;
-  targetEl.dataset.cardKey = cardObj.id;
-  targetEl.style.backgroundImage = `url(${getCardImagePath(cardObj.id)})`;
-  targetEl.style.opacity = '1';
-  targetEl.style.pointerEvents = 'auto';
-  playerDeck.shift();
-  updateDeckUI('player');
-}
-function addCardToDeck(player, cardObj) {
-  if (player === 'ia') iaDeck.push(cardObj);
-  else playerDeck.push(cardObj);
-  updateDeckUI(player);
-}
-function updateDeckUI(player) {
-  const deck = (player === 'ia') ? iaDeck : playerDeck;
-  const deckEl = (player === 'ia') ? iaDeckEl : playerDeckEl;
-  const countEl = (player === 'ia') ? iaDeckCountEl : playerDeckCountEl;
-  if (!deckEl || !countEl) return;
-  countEl.textContent = `${deck.length}`;
-  deckEl.querySelector('.deck-back').style.opacity = deck.length ? '1' : '0.4';
-}
-// demande à la roue un spin en mode deck (postMessage) et ouvre le popup iframe
-function requestWheelDeckSpin(who = 'player') {
-  safeLog(`Demande spin (mode deck) pour ${who}`);
-  // ouvrir le popup iframe (même si playPhase true — autorisé pour mode 'deck')
-  try {
-    wheelPopup.style.display = "flex";
-  } catch (e) { /* ignore */ }
-  try {
-    if (wheelFrame && wheelFrame.contentWindow) {
-      wheelFrame.contentWindow.postMessage({ action: 'spinNow', player: who, mode: 'deck' }, '*');
-    } else if (window.frames['wheelFrame'] && window.frames['wheelFrame'].postMessage) {
-      window.frames['wheelFrame'].postMessage({ action: 'spinNow', player: who, mode: 'deck' }, '*');
-    } else {
-      // fallback vers parent
-      window.parent.postMessage({ action: 'spinNow', player: who, mode: 'deck' }, '*');
-    }
-  } catch (e) {
-    console.warn('requestWheelDeckSpin failed', e);
-  }
-  // demander aussi l'IA automatiquement (elle accepte toujours)
-}
-// ---------------------- Fonctions internes & Actions IA, Handlers IA (avec animation non-bloquante) ----------------------
-function iaHandleKeepCard() {
-  // visuel : avertir le joueur que l'IA 'garde'
-  try { animateIAAction('keep', { duration: 850 }); } catch(e) { /* ignore */ }
-  if (!iaDeck.length) return false;
-  const cardObj = iaDeck.shift();
-  const img = getCardImagePath(cardObj.id);
-  const ok = placeCardInHand('ia', img);
-  updateDeckUI('ia');
-  if (ok) safeLog('IA keep -> card added to hand', cardObj.id);
-  else {
-    // si pas de place, ajouter en arène si possible
-    const placed = placeCardImageInArena('ia', img);
-    if (placed) safeLog('IA keep fallback -> placed in arena', cardObj.id);
-    else {
-      scoreUpdater('ia', 25);
-      safeLog('IA keep fallback -> no place, credited +25', cardObj.id);
-    }
-  }
-  return true;
-}
-function iaHandleSendCard() {
-  // visuel : IA envoie directement en arène
-  try { animateIAAction('send', { duration: 900 }); } catch(e) { /* ignore */ }
-  if (!iaDeck.length) return false;
-  const cardObj = iaDeck.shift();
-  const img = getCardImagePath(cardObj.id);
-
-  const placedTarget = placeCardImageInArena('ia', img);
-  updateDeckUI('ia');
-  if (placedTarget) {
-    chosenEl.style.opacity = 0.5;
-    chosenEl.style.pointerEvents = 'none';
-    safeLog('IA send -> placed in arena from deck', cardObj.id);
-    try { applyCardEffect('ia', cardObj.id); } catch(e) { console.error(e); }
-
-     // ---> NETTOYAGE du slot IA utilisé (pour permettre remplacement/immediate reuse)
-  try { cleanHandSlot(chosenEl, 600); } catch(e){ /* ignore */ }
-    return true;
-  } 
-   else {
-    // fallback : try to put in hand or give points
-    const inHand = placeCardInHand('ia', img);
-    if (inHand) {
-      safeLog('IA send fallback -> placed in hand', cardObj.id);
-      return true;
-    } else {
-      scoreUpdater('ia', 25);
-      safeLog('IA send fallback -> no space, credited +25', cardObj.id);
-      return true;
-    }
-  }
-}
-function iaHandleReplaceCard() {
-  // visuel : IA remplace une carte
-  try { animateIAAction('replace', { duration: 900 }); } catch(e) { /* ignore */ }
-  if (!iaDeck.length) return false;
-  const handCards = getHandCards('ia'); // format: [{el, key}, ...]
-  if (!handCards.length) {
-    // si pas de main, faire keep
-    return iaHandleKeepCard();
-  }
-  const cardObj = iaDeck.shift();
-  // stratégie : remplacer une carte aléatoire
-  const targetIndex = Math.floor(Math.random() * handCards.length);
-  const targetEl = handCards[targetIndex].el;
-  targetEl.dataset.cardKey = cardObj.id;
-  targetEl.style.backgroundImage = `url(${getCardImagePath(cardObj.id)})`;
-  targetEl.style.opacity = '1';
-  targetEl.style.pointerEvents = 'auto';
-  updateDeckUI('ia');
-  safeLog('IA replace -> replaced hand card at index', targetIndex, 'with', cardObj.id);
-  return true;
-}
 // =======================================
 // FONCTION AI  DECISION CONTEXTUELLE
 // =======================================
 function aiChooseCardElement() {
-  const aiScore = scores.ia;
-  const playerScore = scores.player;
-  const handEls = Array.from(document.querySelectorAll('.hand.ia .card'))
-    .filter(c => c.style.opacity !== '0.5');
-  // Si pas de cartes en main mais deck présent -> prioriser actions deck
-  if (handEls.length === 0 && iaDeck.length) {
-    return { mode: 'deck-action', payload: { action: 'keep' } };
-  }
-  if (!handEls.length) return null;
-  // Analyse contextuelle
-  const diff = aiScore - playerScore;
-  let chosenType = 'strategic';
-  if (diff < -50) chosenType = 'attack';
-  else if (diff > 50) chosenType = 'defense';
-  else chosenType = 'joker_or_bonus';
-  // Regrouper les cartes par type
-  const cardsByType = handEls.map(card => {
-    const bg = card.style.backgroundImage || '';
-    for (const type in CARD_MANAGER) {
-      const found = CARD_MANAGER[type].find(c => bg.includes(c.img));
-      if (found) return { card, type: type.toLowerCase(), id: found.id };
-    }
-    return { card, type: 'unknown', id: card.dataset.cardKey || null };
-  });
-  let candidates = [];
-  if (chosenType === 'attack') candidates = cardsByType.filter(c => c.type === 'attaques');
-  else if (chosenType === 'defense') candidates = cardsByType.filter(c => c.type === 'defenses');
-  else if (chosenType === 'joker_or_bonus') candidates = cardsByType.filter(c => c.type === 'jokers' || c.type === 'bonus');
-  if (!candidates.length) candidates = cardsByType;
-  // Si IA possède un deck, possibilité de jouer aussi depuis celui-ci
-  if (iaDeck.length) {
-    const rand = Math.random();
-    if (diff < -50) {
-      // IA en retard : plus agressive
-      if (rand < 0.45) {
-        const selected = candidates[Math.floor(Math.random() * candidates.length)];
-        return { mode: 'hand', payload: selected.card };
-      } else if (rand < 0.8) {
-        return { mode: 'deck-action', payload: { action: 'send' } };
-      } else {
-        return { mode: 'deck-action', payload: { action: 'replace' } };
-      }
-    } else if (diff > 50) {
-      // IA en avance : défensive
-      if (rand < 0.6) return { mode: 'deck-action', payload: { action: 'keep' } };
-      if (rand < 0.9) {
-        const selected = candidates[Math.floor(Math.random() * candidates.length)];
-        return { mode: 'hand', payload: selected.card };
-      }
-      return { mode: 'deck-action', payload: { action: 'replace' } };
-    } else {
-      // Équilibrée
-      if (rand < 0.4) {
-        const selected = candidates[Math.floor(Math.random() * candidates.length)];
-        return { mode: 'hand', payload: selected.card };
-      } else if (rand < 0.7) {
-        return { mode: 'deck-action', payload: { action: 'keep' } };
-      } else {
-        return { mode: 'deck-action', payload: { action: 'replace' } };
-      }
-    }
-  }
-  // Par défaut : jouer une carte depuis la main
-  const selected = candidates[Math.floor(Math.random() * candidates.length)];
-  return { mode: 'hand', payload: selected.card || handEls[0] };
+  const aiScore = scores.ia;
+  const playerScore = scores.player;
+  const hand = Array.from(document.querySelectorAll('.hand.ia .card')).filter(c => c.style.opacity !== '0.5');
+
+  if (!hand.length) return null;
+
+  // Priorité : analyser le contexte
+  const diff = aiScore - playerScore;
+  let chosenType = 'strategic'; // par défaut
+
+  if (diff < -50) {
+    // IA est en retard → offensive
+    chosenType = 'attack';
+  } else if (diff > 50) {
+    // IA a l'avantage → défensive
+    chosenType = 'defense';
+  } else {
+    // Scores proches → stratégique
+    chosenType = 'joker_or_bonus';
+  }
+
+ // Récupération cartes par type
+  const cardsByType = hand.map(card => {
+   const bg = card.style.backgroundImage;
+    for (const type in CARD_MANAGER) {
+      const found = CARD_MANAGER[type].find(c => bg.includes(c.img));
+      if (found) return { card, type: type.toLowerCase(), id: found.id };
+    }
+    return { card, type: 'unknown', id: null };
+  });
+
+  let candidates = [];
+ if (chosenType === 'attack') candidates = cardsByType.filter(c => c.type === 'attaques');
+  else if (chosenType === 'defense') candidates = cardsByType.filter(c => c.type === 'defenses');
+  else if (chosenType === 'joker_or_bonus') candidates = cardsByType.filter(c => c.type === 'jokers' || c.type === 'bonus');
+
+  if (!candidates.length) candidates = cardsByType; // fallback si pas de carte du type voulu
+
+  // Choisir aléatoirement parmi candidats
+  const selected = candidates[Math.floor(Math.random() * candidates.length)];
+  return selected.card || hand[0];
 }
-// --------- aiPlayTurn (corrigée, intégrée aux noms existants) ----------
+
+//SUITE C
 function aiPlayTurn() {
-  // ne rien faire si ce n'est pas le tour ou pas la phase de jeu
+  // Ne jouer que si c'est bien le tour de l'IA et phase de jeu
   if (currentTurn !== 'ia') return;
-  if (!playPhase) return;
+  if (!playPhase) {
+    // phase distribution, IA ne pose pas ici
+    return;
+  }
+  // si l'IA a déjà joué ce tour, ne rien faire
   if (turnActionDone) return;
-  // Obtenir les cartes jouables en main (DOM -> format existant)
+
   const entries = getHandCards('ia');
-
-  // Si IA n'a plus de cartes en main mais a des cartes dans le deck -> piocher (keep)
-if (!entries.length && iaDeck.length) {
-  const ok = iaHandleKeepCard(); // pioche depuis le deck
-  if (ok) {
-    setTimeout(() => aiPlayTurn(), 250); // relancer IA après prise de main
+  if (!entries.length) {
+    safeLog('IA : plus de cartes jouables.');
+    // passer le tour
+    setTimeout(nextTurn, 200);
     return;
   }
-}
-// Si plus de cartes du tout -> demander spin roue IA
-if (!iaDeck.length && !entries.length) {
-  safeLog("IA : deck vide, demande spin roue");
-  requestWheelDeckSpin('ia'); // recharge le deck
-  setTimeout(() => nextTurn(), 400); // passer le tour
-  return;
-}
-
-  // Prendre la décision (main vs deck-action)
-  const decision = aiChooseCardElement();
-  if (!decision) {
-    safeLog('IA : aucune décision possible.');
-    setTimeout(() => { nextTurn(); }, 300);
-    return;
-  }
-  // Si la décision porte sur le deck (keep/send/replace)
-  if (decision.mode === 'deck-action') {
-    const action = decision.payload && decision.payload.action;
-    safeLog('IA décide action deck:', action);
-    if (action === 'keep') iaHandleKeepCard();
-    else if (action === 'send') iaHandleSendCard();
-    else if (action === 'replace') iaHandleReplaceCard();
-    // après action deck, considérer le tour consommé
-    turnActionDone = true;
-    updateHandInteraction();
-    fillArenaSlots();
-    setTimeout(() => { nextTurn(); }, 420);
-    return;
-  }
-  // Sinon : jouer depuis la main (comportement historique)
-  const chosenEl = decision.payload;
-  if (!chosenEl || !chosenEl.dataset) {
-    safeLog('IA : élément main invalide.');
-    setTimeout(() => { nextTurn(); }, 300);
+  const chosenEl = aiChooseCardElement(entries);
+  if (!chosenEl) {
+    safeLog('IA : aucune carte choisie (erreur).');
+    setTimeout(nextTurn, 200);
     return;
   }
   const cardKey = chosenEl.dataset.cardKey;
   const imgSrc = getCardImagePath(cardKey);
-  // Tenter de placer en arène
+  // tenter placer en arène
   const placedTarget = placeCardImageInArena('ia', imgSrc);
   if (placedTarget) {
-    
-// si IA a placé en arène et on a le DOM target -> planifier nettoyage arène
-try {
-  if (placedTarget) {
-    // delay légèrement supérieur pour laisser l'effet IA se montrer
-    cleanArenaSlot(placedTarget, 'ia', 800);
-  }
-} catch (e) {
-  console.warn('cleanArenaSlot IA failed', e);
-}
-    // marquer la carte comme utilisée
+    // marquer la carte comme utilisée dans la main
     chosenEl.style.opacity = 0.5;
     chosenEl.style.pointerEvents = 'none';
     safeLog('IA place', cardKey, 'en arène.');
   } else {
-    // fallback : tenter main, sinon créditer
+    // si pas de place, tenter main fallback (rare)
     const placedHand = placeCardInHand('ia', imgSrc);
     if (placedHand) {
       chosenEl.style.opacity = 0.5;
       chosenEl.style.pointerEvents = 'none';
       safeLog('IA a placé en main (fallback).');
     } else {
+      // pas de place du tout : créditer
       scoreUpdater('ia', 25);
-      safeLog("IA n'a pas pu placer — crédit +25pts.");
+      safeLog('IA n\'a pas pu placer — crédit +25pts.');
     }
   }
-  // Appliquer l'effet de la carte (si défini)
-  try { applyCardEffect('ia', cardKey); } catch (err) { console.error("Erreur application effet IA:", err); }
-  //Nettoyer le slot ia
-chosenEl.style.opacity = 0.5;
-chosenEl.style.pointerEvents = 'none';
-cleanHandSlot(chosenEl,600);
-  // Fin de l'action IA : verrouiller et passer
+  // Appliquer l'effet de la carte choisie
+  try {
+    applyCardEffect('ia', cardKey);
+  } catch (err) {
+    console.error("Erreur lors de l'application d'une règle IA:", err);
+  }
+  // Marquer action faite et mettre à jour interactions
   turnActionDone = true;
   updateHandInteraction();
+
+  // Vérifier arène remplie
   fillArenaSlots();
+
+  // Après un petit délai, repasser le tour au joueur
   setTimeout(() => {
     nextTurn();
-   }, 500);
+  }, 500);
 }
-// ---------------- Handler parent (arène) : réception messages depuis la roue ----------------
+
 window.addEventListener('message', (ev) => {
   const msg = ev.data;
   if (!msg || typeof msg !== 'object') return;
-  // --- 1) Deck update (mode 'deck' from iframe)
-  if (msg.action === 'deckUpdate') {
-    const fromPlayer = msg.player || 'player';
-    const cardData = msg.card || msg.cardData || null;
-    if (!cardData) {
-      safeLog('deckUpdate reçu mais sans card data', msg);
-      return;
-    }
-    const cardObj = (typeof cardData === 'string')
-      ? { id: cardData, label: cardData, image: getCardImagePath(cardData) }
-      : { id: cardData.id || cardData.cardKey || '', label: cardData.label || cardData.id || '', image: cardData.img || cardData.image || getCardImagePath(cardData.id || cardData.cardKey) };
-    addCardToDeck(fromPlayer, cardObj);
-    safeLog('deckUpdate -> ajouté au deck de', fromPlayer, cardObj);
-    const keepOpenFlag = (typeof msg.keepPopupOpen !== 'undefined') ? !!msg.keepPopupOpen : null;
-    const mode = msg.mode || null;
-    // Si explicitement demandé, garder la popup ouverte
-    if (keepOpenFlag === true || mode === 'fast') {
-      try { if (wheelPopup) wheelPopup.style.display = "flex"; } catch(e) {}
-      return;
-    }
-    // Sinon, si IA ou keepPopupOpen === false, fermer popup après court délai
-    if (fromPlayer === 'ia' || keepOpenFlag === false) {
-      setTimeout(() => { try { if (wheelPopup) wheelPopup.style.display = "none"; } catch(e) {} }, 800);
-      return;
-    }
-    // Par défaut (player), garder la popup ouverte
-    try { if (wheelPopup) wheelPopup.style.display = "flex"; } catch(e) {}
-    return;
-  }
-  // --- 2) wheelResult : traiter seulement 'deck' et 'initial'
+
   if (msg.action === 'wheelResult') {
-    const cardId = msg.card;
-    const fromPlayer = msg.player || 'player';
-    const mode = msg.mode || msg.toDeck || null;
-    // Mode deck (comportement inchangé)
-    if (mode === 'deck') {
-      const cardObj = { id: cardId, label: cardId, image: getCardImagePath(cardId) };
-      addCardToDeck(fromPlayer, cardObj);
-      safeLog('wheelResult (deck) -> ajouté au deck de', fromPlayer, cardObj);
-      // fermer la popup si l'IA a rempli son deck ou si explicitement demandé
-      if (playerSlotsFilled >= 4 && iaSlotsFilled >= 4) {
-        setTimeout(() => { try { if (wheelPopup) wheelPopup.style.display = "none"; } catch(e){} }, 800);
-      }
+    assignCardToSlot(msg.player, msg.card);
+    fillArenaSlots();
+
+    if (playerSlotsFilled >= 4 && iaSlotsFilled >= 4) {
+      setTimeout(() => { wheelPopup.style.display = "none"; }, 1200);
       return;
     }
-    // Mode initial (réutilisable) : *NE PAS FERMER LA POPUP AUTOMATIQUEMENT*
-    if (mode === 'initial' || mode === null) {
-      safeLog(`[INIT] wheelResult reçu de ${fromPlayer} (mode initial).`);
-      if ((fromPlayer === 'player' && playerSlotsFilled < 4) || (fromPlayer === 'ia' && iaSlotsFilled < 4)) {
-        assignCardToSlot(fromPlayer, cardId);
-      } else {
-        const cardObj = { id: cardId, label: cardId, image: getCardImagePath(cardId) };
-        addCardToDeck(fromPlayer, cardObj);
-        safeLog('Main pleine -> carte ajoutée au deck', fromPlayer, cardObj);
+    setTimeout(() => {
+      nextTurn();
+      if (currentTurn === 'ia' && wheelFrame && wheelFrame.contentWindow) {
+        setTimeout(() => { wheelFrame.contentWindow.postMessage({ action: 'spinNow' }, '*'); }, 1500);
       }
-      fillArenaSlots();
- 
-      // COMPORTEMENT TOUR : si initial est utilisé en distribution automatique,
-      // on conserve l'ancien chaînage IA/player mais on *ne ferme pas* la popup.
-      if (fromPlayer === 'player') {
-        // demander à l'iframe (si nécessaire) d'enchaîner le spin IA
-        setTimeout(() => {
-          try {
-            if (wheelFrame && wheelFrame.contentWindow) {
-              wheelFrame.contentWindow.postMessage({ action: 'spinNow', player: 'ia', mode: 'initial' }, '*');
-            }
-          } catch (e) { console.warn('Erreur envoi spin IA (initial)', e); }
-        }, 900);
-      } else if (fromPlayer === 'ia') {
-        // remettre le focus local au joueur ; la popup reste ouverte pour qu'il puisse re-cliquer
-        try { setTimeout(() => setTurn('player'), 600); } catch (e) {}
-      }
-      // Si tous les slots sont remplis on peut fermer la popup (optionnel) — sinon on laisse ouverte
-      if (playerSlotsFilled >= 4 && iaSlotsFilled >= 4) {
-        setTimeout(() => { try { if (wheelPopup) wheelPopup.style.display = "none"; } catch(e){} }, 1200);
-      }
-      return;
-    }
-    // Si un autre mode inconnu arrive, log et ignorer
-    safeLog('wheelResult reçu avec mode inconnu :', mode);
-    return;
-  }
-  // --- 3) autres messages utiles ---
-  if (msg.action === 'setTurn') {
-    safeLog('Message setTurn reçu de la roue :', msg.player);
+    }, 1000);
   }
 });
+
 async function fetchHandsAndRender() {
   try {
     const resp = await fetch(`http://localhost:3000/api/hands?gameId=${encodeURIComponent(GAME_ID)}`);
@@ -2752,15 +2080,14 @@ async function fetchHandsAndRender() {
     console.error('fetchHands error', err);
   }
 }
+//SUITE CODE QUI AFFICHE SLOT DE LA MAIN
 function renderHand(player, cardsArray) {
   const container = player === 'player'
     ? document.querySelector('.hand.player')
     : document.querySelector('.hand.ia');
   if (!container) return;
 }
+//INITIALISATION / INTERFACE
 window.addEventListener("DOMContentLoaded", () => {
-  
   updateStatsUI();
-  // créer UI du deck après que le DOM des mains soit rendu
-  createDeckUI();
 });

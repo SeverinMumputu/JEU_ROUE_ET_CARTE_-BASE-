@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Générique du Jeu</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Vidéo en fond -->
+  <video autoplay muted loop id="bg-video">
+    <source src="Générique.mp4" type="video/mp4">
+  </video>
+
+  <!-- Contenu texte + bouton -->
+  <div class="overlay">
+    <h1 class="title">L'Arène des Arcanes</h1>
+    <button id="start-btn">Démarrer</button>
+  </div>
+
+  <!-- Musique de fond -->
+  <audio id="bg-music" loop>
+    <source src="Introspective Demon.mp3" type="audio/mp3">
+  </audio>
+
+  <!-- Popup de présentation -->
+  <div id="start-popup" class="start-popup">
+    <div class="start-content">
+      <p id="start-message"></p>
+      <button id="popup-continue">Continuer</button>
+    </div>
+  </div>
+
+  <!-- Message orientation 
+  <div id="orientation-msg" class="orientation-message">
+    <p>Tournez votre appareil en mode paysage<br>pour une meilleure expérience de jeu !</p>
+    <button id="continue-portrait">Continuer</button>
+  </div>-->
+
+  <script src="script.js"></script>
+</body>
+</html>

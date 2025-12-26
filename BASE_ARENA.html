@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fantasy Card Arena - Crépuscule Médiéval</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <!-- Configuration Tailwind personnalisée -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'night-sky': '#0f172a',
+                        'moon-light': '#94a3b8',
+                        'lantern-gold': '#fbbf24',
+                        'lantern-orange': '#d97706',
+                        'wood-dark': '#271c19',
+                        'ui-glass': 'rgba(23, 23, 35, 0.9)',
+                        'ui-border': 'rgba(251, 191, 36, 0.2)'
+                    },
+                    boxShadow: {
+                        'lantern-glow': '0 0 20px rgba(251, 191, 36, 0.15)',
+                        'moon-glow': '0 0 15px rgba(148, 163, 184, 0.2)',
+                        'card-shadow': '0 10px 30px rgba(0, 0, 0, 0.6)'
+                    },
+                    fontFamily: {
+                        'fantasy': ['Cinzel', 'serif'],
+                        'ui': ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@400;600&display=swap');
+
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #0f172a; font-family: 'Inter', sans-serif; user-select: none; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
+        
+        /* Layout Principal : Padding bas augmenté (pb-4 md:pb-8) pour respirer */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; }
+        
+        .pointer-events-auto { pointer-events: auto; }
+        .glass-panel { background: rgba(30, 27, 24, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(251, 191, 36, 0.15); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4); transition: all 0.3s ease; }
+        .card-slot { background: rgba(0, 0, 0, 0.3); border: 2px dashed rgba(148, 163, 184, 0.2); transition: all 0.4s ease; }
+        .card-slot:hover { border-color: #fbbf24; box-shadow: 0 0 20px rgba(251, 191, 36, 0.15); background: rgba(251, 191, 36, 0.05); }
+        
+        /* Selection visuelle */
+        .card-selected {
+            border-color: #fbbf24 !important;
+            box-shadow: 0 0 25px rgba(251, 191, 36, 0.5) !important;
+            transform: translateY(-15px) !important;
+            z-index: 50;
+        }
+
+        /* Animation Focus Avatar */
+        .avatar-active-turn {
+            border-color: #fbbf24 !important;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.4), inset 0 0 20px rgba(251, 191, 36, 0.2) !important;
+            transition: all 0.5s ease;
+        }
+
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #78350f; border-radius: 4px; }
+        
+        @keyframes candle-flicker { 0% { opacity: 0.9; box-shadow: 0 0 15px rgba(251, 191, 36, 0.2); } 100% { opacity: 0.9; box-shadow: 0 0 15px rgba(251, 191, 36, 0.2); } }
+        .animate-candle { animation: candle-flicker 4s infinite alternate; }
+        
+        .tool-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.5rem; border-radius: 0.5rem; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(251, 191, 36, 0.1); transition: all 0.2s ease; cursor: pointer; }
+        .tool-btn:hover { background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.5); transform: translateY(-2px); }
+        .tool-btn svg { margin-bottom: 4px; }
+        
+        /* Responsive Fixes */
+        @media (max-width: 768px) { 
+            #play-btn { position: relative; z-index: 50; transform: translateZ(0); white-space: nowrap; } 
+            #play-btn-container { flex-shrink: 0; } 
+            /* Ajustement pour centrer la main sur mobile */
+            .mobile-hand-center { justify-content: center; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. COUCHE ARRIÈRE-PLAN -->
+    <div id="canvas-container"></div>
+
+    <!-- 2. COUCHE UI PRINCIPALE -->
+    <!-- Ajout de pb-6 md:pb-10 pour la marge intérieure basse demandée -->
+    <div id="ui-layer" class="p-2 md:p-4 pb-6 md:pb-10 text-gray-200 overflow-hidden justify-between">
+
+        <!-- A) ZONE SUPÉRIEURE (IA) -->
+        <header class="w-full flex justify-between items-start pointer-events-none relative z-20">
+            
+            <!-- GAUCHE: Menus -->
+            <div class="pointer-events-auto flex items-center space-x-2 md:space-x-3">
+                <button class="glass-panel p-2 rounded-full hover:bg-lantern-gold/10 transition-colors group border-lantern-gold/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6 text-gray-400 group-hover:text-lantern-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
+                <button id="wheel-btn" class="glass-panel p-2 rounded-full hover:bg-lantern-gold/10 transition-colors group border-lantern-gold/30 relative" title="Ouvrir la Roue de la Fortune">
+                    <span class="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-gray-900 bg-red-500 transform translate-x-1/4 -translate-y-1/4 animate-pulse"></span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6 text-lantern-gold group-hover:rotate-180 transition-transform duration-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-dasharray="4 4" /><circle cx="12" cy="12" r="3" fill="currentColor" class="opacity-70"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg>
+                </button>
+            </div>
+
+            <!-- CENTRE: HUD IA + MAIN IA -->
+            <div class="flex flex-col md:flex-row-reverse items-center md:items-start pointer-events-auto md:space-x-4 md:space-x-reverse">
+                
+                <!-- HUD Avatar IA -->
+                <div id="ia-avatar-zone" class="glass-panel px-4 py-2 md:px-6 rounded-b-xl flex items-center space-x-3 md:space-x-4 border-t-0 shadow-lg mb-1 md:mb-0 transition-all duration-300">
+                    <div class="flex flex-col items-center"><div class="text-[8px] md:text-[10px] text-gray-500 font-serif uppercase tracking-wider">Temps</div><div class="text-xs text-lantern-gold font-mono">09:00</div></div>
+                    <div class="relative w-10 h-10 md:w-14 md:h-14 rounded-full border border-gray-600 overflow-hidden shadow-lg bg-gray-900 flex-shrink-0">
+                         <img src="https://placehold.co/150x150/271c19/fbbf24?text=IA" alt="Avatar IA" class="w-full h-full object-cover">
+                    </div>
+                    <div class="text-center">
+                        <h2 class="text-gray-300 font-fantasy tracking-widest text-xs md:text-sm">Gardien</h2>
+                        <div class="text-base md:text-lg font-serif text-white">1250 <span class="text-[8px] md:text-[10px] text-gray-500">PTS</span></div>
+                    </div>
+                </div>
+
+                <!-- Main IA & Deck -->
+                <div class="flex items-center space-x-2 pointer-events-none opacity-80 mt-1 md:mt-2">
+                    <!-- Cartes IA (Container) -->
+                    <!-- MODIF RESPONSIVE: space-x-[-5px] pour chevauchement mobile, w-16 h-24 pour la taille -->
+                    <div id="ia-hand-container" class="flex space-x-[-5px] md:space-x-2">
+                        <div class="w-16 h-24 md:w-10 md:h-16 bg-[#3d2b25] border border-[#5d4037] rounded shadow-md"></div>
+                        <div class="w-16 h-24 md:w-10 md:h-16 bg-[#3d2b25] border border-[#5d4037] rounded shadow-md"></div>
+                        <div class="w-16 h-24 md:w-10 md:h-16 bg-[#3d2b25] border border-[#5d4037] rounded shadow-md"></div>
+                        <div class="w-16 h-24 md:w-10 md:h-16 bg-[#3d2b25] border border-[#5d4037] rounded shadow-md"></div>
+                    </div>
+                    <!-- Deck IA -->
+                    <div class="relative block">
+                        <div class="w-12 h-16 md:w-12 md:h-16 bg-[#2a2320] rounded border-r-2 md:border-r-4 border-[#5d4037] shadow-card"></div>
+                        <div class="absolute -bottom-2 -left-2 bg-[#5d4037] text-gray-200 text-[8px] md:text-[10px] w-4 h-4 md:w-5 md:h-5 rounded-full flex items-center justify-center border border-[#8a6a5c]">?</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DROITE: Info Tour -->
+            <div class="glass-panel p-2 md:p-3 rounded-lg pointer-events-auto flex flex-col space-y-1 md:space-y-2 items-center">
+                 <div class="text-[8px] md:text-[10px] text-gray-500 uppercase font-fantasy">Tour</div>
+                 <!-- Affichage dynamique du tour et timer -->
+                 <div id="turn-display" class="w-6 md:w-8 text-center text-xs font-bold text-lantern-gold">--</div>
+                 <div id="timer-display" class="text-xs text-white font-mono">--</div>
+            </div>
+        </header>
+
+        <!-- B) ZONE CENTRALE : TERRAIN -->
+        <main id="combat-arena" class="flex-grow flex flex-col justify-center items-center relative py-2 pointer-events-none z-10">
+            
+            <div id="combat-phase-indicator" class="absolute top-2 md:top-8 text-lantern-gold/80 px-4 py-1 text-sm font-fantasy tracking-[0.2em] z-0 opacity-0 transition-opacity duration-1000" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8);">
+                - COMBAT -
+            </div>
+
+            <div class="relative w-full max-w-3xl h-full max-h-[500px] flex flex-col justify-center space-y-6 md:space-y-10 z-10 pointer-events-auto">
+                
+               <!-- Slots IA (4 slots) - Nettoyage du slot LOUP (Index 1) -->
+                <div id="ia-combat-slots" class="flex justify-center space-x-1 md:space-x-6 combat-row-ai opacity-0 pointer-events-none">
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center opacity-70" data-index="0"></div>
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center opacity-70" data-index="1"></div>
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center opacity-70" data-index="2"></div>
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center opacity-70" data-index="3"></div>
+                </div>
+
+                <div id="center-line" class="w-full flex justify-center items-center opacity-0">
+                    <div class="h-px w-1/4 bg-gradient-to-r from-transparent via-lantern-gold to-transparent"></div>
+                </div>
+
+                <!-- Slots Joueur (4 slots) - ID ajouté -->
+                <div id="player-combat-slots" class="flex justify-center space-x-1 md:space-x-6 combat-row-player opacity-0">
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center cursor-pointer group hover:bg-moon-light/5" data-index="0"><div class="text-moon-light/20 text-xl font-thin group-hover:text-lantern-gold transition-colors">+</div></div>
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center cursor-pointer group hover:bg-moon-light/5" data-index="1"><div class="text-moon-light/20 text-xl font-thin group-hover:text-lantern-gold transition-colors">+</div></div>
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center cursor-pointer group hover:bg-moon-light/5" data-index="2"><div class="text-moon-light/20 text-xl font-thin group-hover:text-lantern-gold transition-colors">+</div></div>
+                    <div class="card-slot w-20 h-28 md:w-24 md:h-36 rounded shadow-lg flex items-center justify-center cursor-pointer group hover:bg-moon-light/5" data-index="3"><div class="text-moon-light/20 text-xl font-thin group-hover:text-lantern-gold transition-colors">+</div></div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- C) HUD JOUEUR (Bas) -->
+        <footer class="flex-shrink-0 w-full pointer-events-auto z-20">
+            <div class="flex flex-col md:flex-row items-center md:items-end justify-between w-full max-w-7xl mx-auto px-2 md:px-4 relative">
+                
+                <!-- 1. BLOC SUPERIEUR MOBILE (Deck & Main) -->
+                <div class="flex items-end space-x-2 md:space-x-4 relative z-30 mobile-hand-center mb-2 md:mb-0">
+                    
+                    <!-- Outils Deck -->
+                    <div id="deck-tools-menu" class="absolute bottom-[110%] left-0 glass-panel p-2 rounded-lg shadow-2xl flex gap-2 transform scale-90 opacity-0 hidden z-50 border border-lantern-gold/40">
+                        <button class="tool-btn group w-12 md:w-14"><svg class="w-4 h-4 md:w-5 md:h-5 text-lantern-gold group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="text-[8px] md:text-[9px] text-gray-400 font-fantasy uppercase">Garder</span></button>
+                        <button class="tool-btn group w-12 md:w-14"><svg class="w-4 h-4 md:w-5 md:h-5 text-lantern-gold group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg><span class="text-[8px] md:text-[9px] text-gray-400 font-fantasy uppercase">Envoyer</span></button>
+                        <button class="tool-btn group w-12 md:w-14"><svg class="w-4 h-4 md:w-5 md:h-5 text-lantern-gold group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg><span class="text-[8px] md:text-[9px] text-gray-400 font-fantasy uppercase">Changer</span></button>
+                        <button class="tool-btn group w-12 md:w-14"><svg class="w-4 h-4 md:w-5 md:h-5 text-lantern-gold group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="text-[8px] md:text-[9px] text-gray-400 font-fantasy uppercase">Recharge</span></button>
+                    </div>
+
+                    <div id="player-deck" class="relative group cursor-pointer block transition-transform hover:-translate-y-1 hover:shadow-[0_0_15px_rgba(251,191,36,0.3)] rounded">
+                        <div class="w-16 h-24 bg-[#2a2320] rounded border-l-2 md:border-l-4 border-[#5d4037] shadow-card"></div>
+                        <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"><svg class="w-6 h-6 md:w-8 md:h-8 text-lantern-gold drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg></div>
+                        <div class="absolute -top-2 -right-2 bg-[#5d4037] text-gray-200 text-[10px] md:text-xs w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center border border-[#8a6a5c]">24</div>
+                    </div>
+
+                    <!-- Main Joueur (Container pour le jeu) -->
+                    <div id="player-hand-container" class="flex space-x-[-12px] md:space-x-2 pb-1 md:pb-2 overflow-x-visible items-end">
+                        <div class="w-20 h-28 md:w-28 md:h-40 glass-panel rounded border-gray-600 hover:border-lantern-gold transition-all duration-300 cursor-pointer shadow-card bg-gray-900/90 flex flex-col p-1 md:p-2 group" data-index="0"></div>
+                        <div class="w-20 h-28 md:w-28 md:h-40 glass-panel rounded border-gray-600 hover:border-lantern-gold transition-all duration-300 cursor-pointer shadow-card bg-gray-900/90 flex flex-col p-1 md:p-2 group" data-index="1"></div>
+                        <div class="w-20 h-28 md:w-28 md:h-40 glass-panel rounded border-gray-600 hover:border-lantern-gold transition-all duration-300 cursor-pointer shadow-card bg-gray-900/90 flex flex-col p-1 md:p-2 group" data-index="2"></div>
+                        <div class="w-20 h-28 md:w-28 md:h-40 glass-panel rounded border-gray-600 hover:border-lantern-gold transition-all duration-300 cursor-pointer shadow-card bg-gray-900/90 flex flex-col p-1 md:p-2 group" data-index="3"></div>
+                    </div>
+                </div>
+
+                <!-- 2. BLOC INFERIEUR MOBILE -->
+                <div class="flex w-full md:w-auto items-end justify-between md:justify-end space-x-0 z-30 px-2 md:px-0">
+                    
+                    <!-- Avatar Joueur -->
+                    <div id="player-avatar-zone" class="glass-panel px-4 py-2 md:px-6 rounded-t-xl flex-shrink-0 flex items-center space-x-3 md:space-x-9 border-b-0 shadow-lg bg-[#1c1917]/80 md:absolute md:left-1/5 md:bottom-0 md:transform md:-translate-x-1/2 md:mb-0 transition-all duration-300">
+                        <div class="flex flex-col items-center">
+                            <div class="text-[8px] md:text-[10px] text-gray-500 font-serif uppercase tracking-wider">Temps</div>
+                            <div class="text-xs text-lantern-gold font-mono">09:00</div>
+                        </div>
+                        <div class="relative w-10 h-10 md:w-16 md:h-16 rounded-full border border-gray-600 overflow-hidden shadow-lg bg-gray-900 flex-shrink-0">
+                             <img src="https://placehold.co/150x150/3d2b25/fbbf24?text=MOI" alt="Avatar Joueur" class="w-full h-full object-cover">
+                        </div>
+                        <div class="text-center">
+                            <h2 class="text-gray-300 font-fantasy tracking-widest text-xs md:text-sm">Voyageur</h2>
+                            <div class="text-base md:text-lg font-serif text-white">1800 <span class="text-[8px] md:text-[10px] text-gray-500">PTS</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex flex-col items-end space-y-1 md:space-y-2 pb-1 md:ml-auto">
+                        <div class="flex space-x-2" id="play-btn-container">
+                            <button id="play-btn" class="bg-[#78350f] hover:bg-[#92400e] text-orange-100 border border-orange-900/50 px-4 py-2 md:px-6 md:py-3 rounded shadow-lg transition-all font-fantasy tracking-wider flex items-center space-x-2 animate-candle text-sm md:text-base">
+                                <span id="play-btn-text">JOUER</span>
+                            </button>
+                        </div>
+                        <button class="text-[10px] md:text-xs text-gray-500 hover:text-gray-300 underline">Passer</button>
+                    </div>
+                </div>
+
+            </div>
+        </footer>
+    </div>
+
+    <!-- MODAL IFRAME -->
+    <div id="wheel-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center">
+        <div id="wheel-overlay" class="absolute inset-0 bg-black/60 backdrop-blur-sm opacity-0 transition-opacity duration-300"></div>
+        <div id="wheel-content" class="relative w-[90%] max-w-md h-[500px] glass-panel rounded-xl border border-lantern-gold/30 shadow-[0_0_50px_rgba(0,0,0,0.8)] transform scale-95 opacity-0 flex flex-col overflow-hidden pointer-events-auto">
+            <div class="flex justify-between items-center p-3 border-b border-white/10 bg-black/40">
+                <h3 class="text-lantern-gold font-fantasy tracking-widest text-sm flex items-center gap-2"><span>✦</span> Roue de la Fortune</h3>
+                <button id="close-wheel" class="text-gray-400 hover:text-white hover:rotate-90 transition-all duration-300"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            <div class="flex-grow relative bg-black/20">
+                <iframe src="roue.html" class="absolute inset-0 w-full h-full border-none" title="Roue de la Fortune" allow="autoplay"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class ArenaBackground {
+            constructor() {
+                this.container = document.getElementById('canvas-container');
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+                this.fireflies = null;
+                this.clock = new THREE.Clock();
+                this.mouse = new THREE.Vector2();
+                
+                // Cristaux d'énergie pour le Timer Magique
+                this.turnCrystalTop = null;
+                this.turnCrystalBottom = null;
+                
+                this.init();
+            }
+            init() {
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.container.appendChild(this.renderer.domElement);
+                this.scene.fog = new THREE.FogExp2(0x0f172a, 0.035);
+                this.scene.background = new THREE.Color(0x0f172a);
+                this.addLights();
+                this.addFloor();
+                this.addFireflies();
+                this.addTurnCrystals(); // Ajout des cristaux
+                this.camera.position.set(0, 4, 12);
+                this.camera.lookAt(0, 0, 0);
+                window.addEventListener('resize', this.onResize.bind(this));
+                document.addEventListener('mousemove', this.onMouseMove.bind(this));
+                this.animate();
+            }
+            addLights() {
+                const moonLight = new THREE.DirectionalLight(0x94a3b8, 0.6); moonLight.position.set(-10, 20, -10); this.scene.add(moonLight);
+                const ambientLight = new THREE.AmbientLight(0x1e293b, 0.8); this.scene.add(ambientLight);
+                const warmLight = new THREE.PointLight(0xfbbf24, 0.8, 25); warmLight.position.set(5, 2, 8); this.scene.add(warmLight);
+            }
+            addFloor() {
+                const geometry = new THREE.PlaneGeometry(100, 100);
+                const material = new THREE.MeshStandardMaterial({ color: 0x1a202c, roughness: 0.9, metalness: 0.1 });
+                const plane = new THREE.Mesh(geometry, material);
+                plane.rotation.x = -Math.PI / 2; plane.position.y = -2; this.scene.add(plane);
+                const gridHelper = new THREE.GridHelper(60, 40, 0x334155, 0x0f172a);
+                gridHelper.position.y = -1.9; gridHelper.material.opacity = 0.1; gridHelper.material.transparent = true; this.scene.add(gridHelper);
+            }
+            addFireflies() {
+                const particleCount = 150;
+                const geometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(particleCount * 3);
+                const colors = new Float32Array(particleCount * 3);
+                const sizes = new Float32Array(particleCount);
+                const phases = new Float32Array(particleCount);
+                const colorFirefly = new THREE.Color(0xfef3c7);
+                for (let i = 0; i < particleCount; i++) {
+                    positions[i * 3] = (Math.random() - 0.5) * 40;
+                    positions[i * 3 + 1] = Math.random() * 10;
+                    positions[i * 3 + 2] = (Math.random() - 0.5) * 30;
+                    colors[i * 3] = colorFirefly.r; colors[i * 3 + 1] = colorFirefly.g; colors[i * 3 + 2] = colorFirefly.b;
+                    sizes[i] = Math.random() * 0.15 + 0.05; phases[i] = Math.random() * Math.PI * 2;
+                }
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+                geometry.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
+                const material = new THREE.PointsMaterial({ size: 0.2, vertexColors: true, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending });
+                this.fireflies = new THREE.Points(geometry, material);
+                this.scene.add(this.fireflies);
+                this.fireflies.initialPositions = positions.slice();
+            }
+            addTurnCrystals() {
+                const geometry = new THREE.IcosahedronGeometry(0.5, 0);
+                const material = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent: true, opacity: 0 });
+                
+                // Cristal Haut (IA) - positionné approximativement au dessus
+                this.turnCrystalTop = new THREE.Mesh(geometry, material.clone());
+                this.turnCrystalTop.position.set(0, 3, -3);
+                this.scene.add(this.turnCrystalTop);
+
+                // Cristal Bas (Joueur)
+                this.turnCrystalBottom = new THREE.Mesh(geometry, material.clone());
+                this.turnCrystalBottom.position.set(0, 0, 3);
+                this.scene.add(this.turnCrystalBottom);
+            }
+            updateTurnVisuals(player, phase) {
+                const activeCrystal = player === 'player' ? this.turnCrystalBottom : this.turnCrystalTop;
+                const inactiveCrystal = player === 'player' ? this.turnCrystalTop : this.turnCrystalBottom;
+
+                if (activeCrystal && inactiveCrystal) {
+                    // Désactiver l'autre
+                    inactiveCrystal.material.opacity = 0;
+                    
+                    // Activer le courant
+                    activeCrystal.material.opacity = 0.8;
+                    const color = phase === 1 ? 0xfbbf24 : 0xff0000; // Or ou Rouge
+                    activeCrystal.material.color.setHex(color);
+                    
+                    // Rotation speed storage in userData for animation loop
+                    activeCrystal.userData.spinSpeed = phase === 1 ? 0.01 : 0.1;
+                }
+            }
+            onResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+            onMouseMove(event) {
+                this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            }
+            animate() {
+                requestAnimationFrame(this.animate.bind(this));
+                const time = this.clock.getElapsedTime();
+                if (this.fireflies) {
+                    const positions = this.fireflies.geometry.attributes.position.array;
+                    const initial = this.fireflies.initialPositions;
+                    for(let i = 0; i < positions.length / 3; i++) {
+                        positions[i*3 + 1] = initial[i*3 + 1] + Math.sin(time * 0.5 + initial[i*3]) * 0.5;
+                        positions[i*3] = initial[i*3] + Math.cos(time * 0.3 + initial[i*3+1]) * 0.2;
+                    }
+                    this.fireflies.geometry.attributes.position.needsUpdate = true;
+                }
+                // Animation des cristaux
+                [this.turnCrystalTop, this.turnCrystalBottom].forEach(crystal => {
+                    if (crystal && crystal.material.opacity > 0) {
+                        crystal.rotation.y += crystal.userData.spinSpeed || 0.01;
+                        crystal.rotation.x += (crystal.userData.spinSpeed || 0.01) * 0.5;
+                        crystal.scale.setScalar(1 + Math.sin(time * 5) * 0.1); // Pulsation
+                    }
+                });
+
+                this.camera.position.x += (this.mouse.x * 0.5 - this.camera.position.x) * 0.05;
+                this.camera.position.y += (4 + this.mouse.y * 0.2 - this.camera.position.y) * 0.05;
+                this.camera.lookAt(0, 0, 0);
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // --- LOGIQUE DE COMBAT ---
+        class CombatManager {
+            constructor(uiManager, arena3D) {
+                this.uiManager = uiManager;
+                this.arena3D = arena3D;
+                this.isActive = false;
+                this.currentTurn = 'player';
+                this.turnPhase = 1;
+                this.timer = 9;
+                this.intervalId = null;
+                this.playerAvatarZone = document.getElementById('player-avatar-zone');
+                this.iaAvatarZone = document.getElementById('ia-avatar-zone');
+                this.timerDisplay = document.getElementById('timer-display');
+                this.turnDisplay = document.getElementById('turn-display');
+                this.selectedCardIndex = -1;
+            }
+
+            initiateCombat() {
+                console.log("⚔️ DÉBUT DU COMBAT");
+                this.isActive = true;
+                document.getElementById('combat-arena').style.opacity = "1";
+                
+                gsap.to(".combat-row-ai, .combat-row-player, #center-line, #combat-phase-indicator", { opacity: 1, duration: 0.5 });
+                gsap.fromTo(".combat-row-ai > div, .combat-row-player > div", {  y: 20 }, { y: 0, duration: 0.8, stagger: 0.1, ease: "back.out(1.7)" });
+
+                this.startTurn('player');
+                this.enablePlayerInteraction();
+            }
+
+            startTurn(player) {
+                this.currentTurn = player;
+                this.turnPhase = 1;
+                this.timer = 9;
+                this.updateVisuals();
+                this.startTimer();
+                if (player === 'ia') this.processIATurn();
+            }
+
+            startTimer() {
+                if (this.intervalId) clearInterval(this.intervalId);
+                this.intervalId = setInterval(() => {
+                    this.timer--;
+                    this.updateTimerDisplay();
+                    if (this.timer <= 0) {
+                        if (this.turnPhase === 1) {
+                            this.turnPhase = 2;
+                            this.timer = 9;
+                            this.updateVisuals();
+                        } else {
+                            this.passTurn();
+                        }
+                    }
+                }, 1000);
+            }
+
+            passTurn() {
+                if (this.intervalId) clearInterval(this.intervalId);
+                this.currentTurn = this.currentTurn === 'player' ? 'ia' : 'player';
+                this.startTurn(this.currentTurn);
+            }
+
+            updateVisuals() {
+                this.playerAvatarZone.classList.remove('avatar-active-turn');
+                this.iaAvatarZone.classList.remove('avatar-active-turn');
+                this.turnDisplay.innerText = this.currentTurn === 'player' ? "JOUEUR" : "IA";
+                this.updateTimerDisplay();
+                
+                if (this.currentTurn === 'player') this.playerAvatarZone.classList.add('avatar-active-turn');
+                else this.iaAvatarZone.classList.add('avatar-active-turn');
+                
+                this.arena3D.updateTurnVisuals(this.currentTurn, this.turnPhase);
+            }
+
+            updateTimerDisplay() {
+                this.timerDisplay.innerText = `0${this.timer}s`;
+                this.timerDisplay.style.color = this.turnPhase === 2 ? '#ff4d4d' : '#ffffff';
+            }
+
+            enablePlayerInteraction() {
+                const handSlots = document.getElementById('player-hand-container').children;
+                Array.from(handSlots).forEach((slot, index) => {
+                    slot.onclick = () => {
+                        if (!this.isActive || this.currentTurn !== 'player') return;
+                        if (slot.innerHTML.trim() === "") return; 
+                        if (this.selectedCardIndex === index) {
+                            this.playCard(index, 'player');
+                            this.deselectCard();
+                        } else {
+                            this.selectCard(index);
+                        }
+                    };
+                });
+            }
+
+            selectCard(index) {
+                this.deselectCard();
+                this.selectedCardIndex = index;
+                const slot = document.getElementById('player-hand-container').children[index];
+                slot.classList.add('card-selected');
+            }
+
+            deselectCard() {
+                if (this.selectedCardIndex !== -1) {
+                    const prevSlot = document.getElementById('player-hand-container').children[this.selectedCardIndex];
+                    if (prevSlot) prevSlot.classList.remove('card-selected');
+                    this.selectedCardIndex = -1;
+                }
+            }
+
+          processIATurn() {
+    const thinkingTime = Math.floor(Math.random() * 4000) + 2000;
+    setTimeout(() => {
+        if (this.currentTurn === 'ia') {
+            const handContainer = document.getElementById('ia-hand-container');
+            const validIndices = [];
+            Array.from(handContainer.children).forEach((slot, index) => {
+                 // Sélectionner uniquement les slots non vides (cartes présentes)
+                 if (slot && slot.innerHTML && slot.innerHTML.trim() !== "") validIndices.push(index);
+            });
+
+            if (validIndices.length > 0) {
+                const randomIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
+                this.playCard(randomIndex, 'ia');
+            } else {
+                this.passTurn();
+            }
+        }
+    }, thinkingTime);
+}
+
+            playCard(index, playerType) {
+                const sourceId = playerType === 'player' ? 'player-hand-container' : 'ia-hand-container';
+                const targetId = playerType === 'player' ? 'player-combat-slots' : 'ia-combat-slots';
+                const sourceSlot = document.getElementById(sourceId).children[index];
+                const targetSlot = document.getElementById(targetId).children[index];
+
+                if (!sourceSlot || !targetSlot) return;
+
+                gsap.to(sourceSlot, { duration: 0.3, onComplete: () => {
+                    targetSlot.className = sourceSlot.className; 
+                    targetSlot.innerHTML = sourceSlot.innerHTML;
+                    targetSlot.classList.remove('card-selected', 'hover:border-lantern-gold', 'cursor-pointer', 'card-playable');
+                    targetSlot.classList.add('opacity-100');
+                    
+                    if (playerType === 'player') {
+                        sourceSlot.className = "w-20 h-28 md:w-28 md:h-40 glass-panel rounded border-gray-600 opacity-50 flex flex-col p-1 md:p-2 group";
+                        sourceSlot.innerHTML = "";
+                    } else {
+                        sourceSlot.className = "w-16 h-24 md:w-10 md:h-16 bg-[#3d2b25] border border-[#5d4037] rounded shadow-md opacity-20";
+                        sourceSlot.innerHTML = ""; 
+                    }
+                    
+                    gsap.fromTo(targetSlot, {y: -20, opacity: 0}, {y: 0, opacity: 1, duration: 0.5, ease: "back.out(1.2)"});
+                    this.passTurn();
+                }});
+            }
+        }
+       
+        class ArenaNetworkManager {
+            constructor(uiManager) {
+                this.uiManager = uiManager;
+                this.initializeDatabase();
+                this.hands = { player: { count: 0, max: 4 }, ia: { count: 0, max: 4 } };
+                window.addEventListener("message", this.handleMessage.bind(this));
+            }
+            // ... (Database initialization code unchanged) ...
+            initializeDatabase() {
+                const POINTS = [
+                  { id: "pt_25",  typeId: "type_point", label: "+25s", image: "3d-alarm.png",   description: "Ajoute 25 secondes au score" },
+                  { id: "pt_50",  typeId: "type_point", label: "+50s", image: "clock_2.png",    description: "Ajoute 50 secondes au score" },
+                  { id: "pt_75",  typeId: "type_point", label: "+75s", image: "clock_3.png",    description: "Ajoute 75 secondes au score" },
+                  { id: "pt_100", typeId: "type_point", label: "+100s", image: "clock_4.png",   description: "Ajoute 100 secondes au score" },
+                  { id: "pt_150", typeId: "type_point", label: "+150s", image: "clock.png",     description: "Ajoute 150 secondes au score" },
+                  { id: "pt_200", typeId: "type_point", label: "+200s", image: "clock.png",     description: "Ajoute 200 secondes au score" }
+                ];
+
+                const ATTAQUES = [
+                  { id: "atk_vision", typeId: "type_attaque", label: "visionnaire", image: "visionary.png", description: "Permet de voir à l'avance les effets" },
+                  { id: "atk_stop",   typeId: "type_attaque", label: "stop",        image: "stop.png",      description: "Stoppe la roue de l'adversaire" },
+                  { id: "atk_echange",typeId: "type_attaque", label: "échange",     image: "echange.png",   description: "Échange forcé avec un adversaire" },
+                  { id: "atk_vol",    typeId: "type_attaque", label: "vol",         image: "bandit.png",    description: "Vole une carte à un autre joueur" },
+                  { id: "atk_destruction", typeId: "type_attaque", label: "destruction", image: "explosion.png", description: "Détruit une carte d’un adversaire" },
+                  { id: "atk_reduction", typeId: "type_attaque", label: "réduction", image: "limited_2.png", description: "Réduit le temps adverse" },
+                  { id: "atk_limitation", typeId: "type_attaque", label: "limitation", image: "sablier.png", description: "Limite l’inventaire adverse" }
+                ];
+
+                const DEFENSES = [
+                  { id: "def_masque", typeId: "type_defense", label: "masque" , image: "theatre.png", description: "Masque les effets entrants" },
+                  { id: "def_blocage", typeId: "type_defense", label: "blocage", image: "no_malus.png", description: "Bloque une attaque" },
+                  { id: "def_renvoi", typeId: "type_defense", label: "renvoi_Attaque", image: "renvoi.png", description: "Renvoie les attaques" },
+                  { id: "def_explosion", typeId: "type_defense", label: "explosion_Nettoyage", image: "exploseEtNettoi.png", description: "Explose et nettoie tout" },
+                  { id: "def_bouclier", typeId: "type_defense", label: "bouclier", image: "bouclier.png", description: "Ajoute une protection temporaire" },
+                  { id: "def_restauration", typeId: "type_defense", label: "restauration_Etat", image: "super-power.png", description: "Restaure l’état précédent" },
+                  { id: "def_suppression", typeId: "type_defense", label: "suppresion_malus", image: "no-bomb.png", description: "Supprime un malus actif" }
+                ];
+
+                const MALUS = [
+                  { id: "malus_hasard", typeId: "type_malus", label: "Effet_hasard_malus", image: "effet.png", description: "Effet aléatoire de malus" },
+                  { id: "malus_division", typeId: "type_malus", label: "division_points_2", image: "division.png", description: "Divise les points en deux" },
+                  { id: "malus_perteTour", typeId: "type_malus", label: "aucun_gain_tout_perdu", image: "perte.png", description: "Aucun gain, tour perdu" },
+                  { id: "malus_reductionInv", typeId: "type_malus", label: "réduction_temporaire_inventaire", image: "réduction.png", description: "Réduction temporaire d’inventaire" },
+                  { id: "malus_perte50", typeId: "type_malus", label: "perte_50secs", image: "Moins-50.png", description: "Perte de 50 secondes" },
+                  { id: "malus_disparition", typeId: "type_malus", label: "disparition_joker", image: "Disparition_Joker.png", description: "Fait disparaître un joker" },
+                  { id: "malus_reduction1", typeId: "type_malus", label: "réduction_inventaire_1", image: "Moins-1.png", description: "Réduit l’inventaire de 1" },
+                  { id: "malus_perte30", typeId: "type_malus", label: "perte_30%_temps", image: "Perte_30.png", description: "Perte de 30% du temps" },
+                  { id: "malus_limitGain", typeId: "type_malus", label: "limitation_futurs_gains", image: "sablier.png", description: "Limitation des futurs gains" },
+                  { id: "malus_blocJoker", typeId: "type_malus", label: "blocage_joker_while_3mins", image: "no-bomb.png", description: "Pas de joker pendant 3 minutes" }
+                ];
+
+                const BONUS = [
+                  { id: "bonus_supprMalus", typeId: "type_bonus", label: "supression_All_malus_Actifs", image: "cadeau_3.png", description: "Supprime tous les malus actifs" },
+                  { id: "bonus_x3", typeId: "type_bonus", label: "Temps_multiplié_x3", image: "cadeau.png", description: "Temps multiplié par 3" },
+                  { id: "bonus_jokerHasard", typeId: "type_bonus", label: "Gagner_joker_hasard", image: "cadeau_7.png", description: "Obtenez un joker aléatoire" },
+                  { id: "bonus_carteHasard", typeId: "type_bonus", label: "Gagner_Carte_hasard", image: "cadeau_6.png", description: "Gagnez une carte aléatoire" },
+                  { id: "bonus_plus30", typeId: "type_bonus", label: "Ajout_30%_All_gains", image: "cadeau_5.png", description: "Ajoute 30% à tous les gains" },
+                  { id: "bonus_slots", typeId: "type_bonus", label: "Ajout_2_Slots_Cartes", image: "cadeau_4.png", description: "Ajoute 2 slots de cartes" },
+                  { id: "bonus_double", typeId: "type_bonus", label: "Double_Points_gagnés", image: "cadeau.png", description: "Double les points gagnés" }
+                ];
+
+                const JOKERS = [
+                  { id: "joker_limite", typeId: "type_joker", label: "Limitation_Effet_Autre_Carte", image: "joker_2.png", description: "Imite l’effet d’une autre carte" },
+                  { id: "joker_retourne", typeId: "type_joker", label: "Retourne_Attaque", image: "joker.png", description: "Retourne une attaque" },
+                  { id: "joker_neutralise", typeId: "type_joker", label: "Neutralisation_Pickpocket_ET_Autodestruction", image: "joker_2.png", description: "Neutralise Pickpocket et Autodestruction" },
+                  { id: "joker_parade", typeId: "type_joker", label: "parade_contre_EchangeForcé_ET_Mine", image: "joker.png", description: "Parade contre Échange forcé et Mine" },
+                  { id: "joker_immunite", typeId: "type_joker", label: "Immunité_totale", image: "joker_2.png", description: "Immunité totale" },
+                  { id: "joker_annule", typeId: "type_joker", label: "Annulation_All_limitations", image: "joker.png", description: "Annule toutes les limitations" },
+                  { id: "joker_absorbe", typeId: "type_joker", label: "Absorbe_Next_Attaque", image: "joker_2.png", description: "Absorbe la prochaine attaque" }
+                ];
+
+                this.CARD_DB = {};
+                
+                const addCards = (list, typeLabel) => {
+                    list.forEach(card => {
+                        this.CARD_DB[card.id] = { ...card, typeLabel };
+                    });
+                };
+
+                addCards(POINTS, "Point");
+                addCards(ATTAQUES, "Attaque");
+                addCards(DEFENSES, "Défense");
+                addCards(MALUS, "Malus");
+                addCards(BONUS, "Bonus");
+                addCards(JOKERS, "Joker");
+            }
+
+getCardData(cardKey) {
+                // Fallback si la clé n'existe pas exactement
+                return this.CARD_DB[cardKey] || this.CARD_DB['pt_25'];
+            }
+    
+
+            handleMessage(event) {
+                const data = event.data;
+                if (data.action === 'wheelResult') {
+                    const cardData = this.getCardData(data.card);
+                    if (cardData) {
+                        this.placeCardInHand(data.player, cardData);
+                        this.checkHandsFull();
+                    }
+                }
+            }
+            
+
+  placeCardInHand(playerType, card) {
+    console.log(`[DEBUG] placeCardInHand appelé pour ${playerType} avec carte ${card.id}`);
+
+    const containerId = playerType === 'player' ? 'player-hand-container' : 'ia-hand-container';
+    let container = document.getElementById(containerId);
+
+    const isFirstCard = this.hands[playerType].count === 0;
+    const isBroken = !container || container.children.length < this.hands[playerType].max;
+
+    // ÉTAPE 2 : Vérification Logique (Main pleine ?)
+    if (this.hands[playerType].count >= this.hands[playerType].max) {
+        console.log(`[INFO] Main pleine pour ${playerType}, carte ignorée.`);
+        return;
+    }
+
+    // ÉTAPE 3 : Ciblage du Slot
+    let slots = container.children;
+    let targetSlot = slots[this.hands[playerType].count];
+
+    // ÉTAPE 4 : Sécurité Ultime
+    if (!targetSlot) {
+        console.error(`[CRITIQUE] Slot index ${this.hands[playerType].count} introuvable après régénération.`);
+        return;
+    }
+
+    // Si on arrive ici, targetSlot EXISTE.
+    const baseClasses = playerType === 'player'
+        ? "w-20 h-28 md:w-28 md:h-40"
+        : "w-16 h-24 md:w-10 md:h-16";
+
+    targetSlot.className = `${baseClasses} glass-panel rounded border-lantern-gold shadow-[0_0_15px_rgba(251,191,36,0.2)] bg-gray-900/95 flex flex-col p-1 md:p-2 cursor-pointer transform transition-all duration-500`;
+
+    const imageContent = card.image.includes('.png') 
+        ? `<img src="${card.image}" alt="${card.label}" class="w-full h-full object-contain opacity-90 drop-shadow-md">` 
+        : `<span class="text-xl md:text-3xl opacity-80">${card.image}</span>`;
+
+    targetSlot.innerHTML = `<div class="text-[9px] md:text-xs text-lantern-gold font-fantasy text-center mb-1 truncate w-full">${card.label}</div><div class="flex-grow bg-lantern-orange/10 rounded flex items-center justify-center border border-lantern-orange/20 overflow-hidden">${imageContent}</div><div class="mt-1 text-center font-bold text-white text-[9px] md:text-sm">${card.typeLabel}</div>`;
+
+    // Incrémentation
+    this.hands[playerType].count++;
+    
+    console.log(`[SUCCESS] Carte placée pour ${playerType}. Nouveau count: ${this.hands[playerType].count}`);
+
+    // Animation (Note: si GSAP cause des soucis d'affichage, commenter cette ligne pour tester)
+    try {
+        gsap.from(targetSlot, {scale: 0, duration: 0.4, clearProps: "scale"});
+    } catch(e) {
+        console.warn("GSAP animation error", e);
+    }
+}
+            checkHandsFull() {
+                // Condition critique : Remplissage complet avant combat
+                if (this.hands.player.count === 4 && this.hands.ia.count === 4) {
+                    console.log("Main complète ! Lancement du combat...");
+                    // Fermeture de la roue via UIManager
+                    if (this.uiManager.closeWheel) this.uiManager.closeWheel();
+                    // Lancement de la logique de combat
+                    if (this.uiManager.combatManager) this.uiManager.combatManager.initiateCombat();
+                }
+            }
+        }
+
+        class UIManager {
+            constructor() {
+                this.initAnimations();
+                this.initWheelSystem();
+                this.initDeckInteraction();
+                // this.initCombatTrigger(); // Désactivé car géré par le remplissage de main désormais
+                
+                this.bg = new ArenaBackground();
+                this.combatManager = new CombatManager(this, this.bg);
+                this.networkManager = new ArenaNetworkManager(this);
+
+                const playBtn = document.getElementById('play-btn');
+                const playText = document.getElementById('play-btn-text');
+                if(playBtn) {
+                    playBtn.addEventListener('click', () => {
+                        playText.textContent = "EN COURS...";
+                        playBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                        gsap.to(".combat-row-ai, .combat-row-player, #center-line, #combat-phase-indicator", { opacity: 1, duration: 0.5 });
+                        gsap.fromTo(".combat-row-ai > div, .combat-row-player > div", { scale: 0.5, opacity: 0, y: 20 }, { scale: 1, opacity: 1, y: 0, duration: 0.8, stagger: 0.1, ease: "back.out(1.7)" });
+                    });
+                }
+            }
+            
+           showCombatArena() {
+                // Helper appelé par CombatManager
+                gsap.to(".combat-row-ai, .combat-row-player, #center-line, #combat-phase-indicator", { opacity: 1, duration: 0.5 });
+                gsap.fromTo(".combat-row-ai > div, .combat-row-player > div", { scale: 0.5, opacity: 0, y: 20 }, { scale: 1, opacity: 1, y: 0, duration: 0.8, stagger: 0.1, ease: "back.out(1.7)" });
+            }
+
+            initAnimations() {
+                const tl = gsap.timeline({ defaults: { ease: "power2.out" } });
+                tl.from("#ui-layer", { duration: 1.5, opacity: 0 });
+                tl.from("header > div", { y: -20, opacity: 0, duration: 1, stagger: 0.3 }, "-=1");
+                tl.from("footer > div", { y: 50, opacity: 0, duration: 1 }, "-=0.8");
+            }
+
+            initWheelSystem() {
+                const btn = document.getElementById('wheel-btn');
+                const modal = document.getElementById('wheel-modal');
+                const overlay = document.getElementById('wheel-overlay');
+                const content = document.getElementById('wheel-content');
+                const closeBtn = document.getElementById('close-wheel');
+                if (!btn || !modal) return;
+                this.openWheel = () => { modal.classList.remove('hidden'); gsap.to(overlay, { opacity: 1, duration: 0.3 }); gsap.fromTo(content, { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(1.7)" }); };
+                this.closeWheel = () => { gsap.to(content, { scale: 0.9, opacity: 0, duration: 0.2 }); gsap.to(overlay, { opacity: 0, duration: 0.2, onComplete: () => { modal.classList.add('hidden'); } }); };
+                btn.addEventListener('click', this.openWheel);
+                closeBtn.addEventListener('click', this.closeWheel);
+                overlay.addEventListener('click', this.closeWheel);
+            }
+
+            initDeckInteraction() {
+                const deck = document.getElementById('player-deck');
+                const menu = document.getElementById('deck-tools-menu');
+                let isOpen = false;
+                if (!deck || !menu) return;
+                deck.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    isOpen = !isOpen;
+                    if (isOpen) { menu.classList.remove('hidden'); gsap.fromTo(menu, { opacity: 0, y: 10, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(1.5)" }); } else { gsap.to(menu, { opacity: 0, y: 10, scale: 0.9, duration: 0.2, onComplete: () => menu.classList.add('hidden') }); }
+                });
+                document.addEventListener('click', (e) => { if (isOpen && !menu.contains(e.target) && e.target !== deck) { isOpen = false; gsap.to(menu, { opacity: 0, y: 10, scale: 0.9, duration: 0.2, onComplete: () => menu.classList.add('hidden') }); } });
+            }
+        }
+        window.onload = () => {
+            //const bg = new ArenaBackground();
+            const ui = new UIManager();
+            console.log("Medieval Twilight Arena & Network Initialized");
+        };
+    </script>
+</body>
+</html>

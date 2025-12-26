@@ -1,0 +1,26 @@
+{
+  "name": "cardgame",
+  "version": "1.0.0",
+  "description": "\"Jeu des Cartes\"",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SeverinMumputu/Essai_Arene_Roue.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SeverinMumputu/Essai_Arene_Roue/issues"
+  },
+  "homepage": "https://github.com/SeverinMumputu/Essai_Arene_Roue#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "mysql2": "^3.14.5",
+    "node": "^24.8.0"
+  }
+}
